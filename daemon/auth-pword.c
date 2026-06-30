@@ -45,7 +45,8 @@
 #include "acm.h"
 #include "session.h"
 #include "sess_body.h" /* for Sessions[] */
-#include "alarm.h"
+//#include "alarm.h"
+#include "spu_alarm.h"
 
 #include <stdlib.h>
 #include <string.h>

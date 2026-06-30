@@ -40,6 +40,14 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+
+#include <stdint.h>
+#include <stddef.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <time.h>
+#include <unistd.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/param.h>
@@ -121,65 +129,7 @@ typedef int sockopt_len_t;
 typedef unsigned int u_int;
 #endif
 
-#ifndef HAVE_INTXX_T
-# if (SIZEOF_CHAR == 1)
-typedef char int8_t;
-# else
-#  error "8 bit int type not found."
-# endif
-# if (SIZEOF_SHORT_INT == 2)
-typedef short int int16_t;
-# else
-#  ifdef _CRAY
-typedef long  int16_t;
-#  else
-#   error "16 bit int type not found."
-#  endif /* _CRAY */
-# endif
-# if (SIZEOF_INT == 4)
-typedef int int32_t;
-# else
-#  ifdef _CRAY
-typedef long  int32_t;
-#  else
-#   error "32 bit int type not found."
-#  endif /* _CRAY */
-# endif
-#endif
 
-/* If sys/types.h does not supply u_intXX_t, supply them ourselves */
-#ifndef HAVE_U_INTXX_T
-# ifdef HAVE_UINTXX_T
-typedef uint8_t u_int8_t;
-typedef uint16_t u_int16_t;
-typedef uint32_t u_int32_t;
-# define HAVE_U_INTXX_T 1
-# else
-#  if (SIZEOF_CHAR == 1)
-typedef unsigned char u_int8_t;
-#  else
-#   error "8 bit int type not found."
-#  endif
-#  if (SIZEOF_SHORT_INT == 2)
-typedef unsigned short int u_int16_t;
-#  else
-#   ifdef _CRAY
-typedef unsigned long  u_int16_t;
-#   else
-#    error "16 bit int type not found."
-#   endif
-#  endif
-#  if (SIZEOF_INT == 4)
-typedef unsigned int u_int32_t;
-#  else
-#   ifdef _CRAY
-typedef unsigned long  u_int32_t;
-#   else
-#    error "32 bit int type not found."
-#   endif
-#  endif
-# endif
-#endif
 
 /* 64-bit types */
 #ifndef HAVE_INT64_T

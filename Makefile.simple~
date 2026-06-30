@@ -1,0 +1,69 @@
+CC      = gcc
+CFLAGS  = -O2 -Wall -Wextra -std=c99
+CPPFLAGS = -D_GNU_SOURCE -D_DEFAULT_SOURCE \
+	 -Iinclude\
+	 -Idaemon \
+	 -Ilibspread \
+	 -Ilibspread-util/include \
+	 -Istdutil/src
+
+LDFLAGS =
+LDLIBS  = -lcrypt
+
+DAEMON_OBJS = \
+    daemon/spread.o \
+    daemon/session.o \
+    daemon/network.o \
+    daemon/protocol.o \
+    daemon/membership.o \
+    daemon/groups.o \
+    daemon/message.o \
+    daemon/configuration.o \
+    daemon/log.o \
+    daemon/status.o \
+    daemon/flow_control.o \
+    daemon/auth-null.o \
+    daemon/auth-ip.o \
+    daemon/auth-pword.o \
+    daemon/acm.o \
+    daemon/acp-permit.o \
+    daemon/ip_enum.o \
+    daemon/y.tab.o \
+    daemon/lex.yy.o
+
+
+SPU_OBJS = \
+    libspread-util/src/alarm.o \
+    libspread-util/src/events.o \
+    libspread-util/src/memory.o \
+    libspread-util/src/spu_addr.o \
+    libspread-util/src/data_link.o
+    
+STDUTIL_OBJS = \
+    stdutil/src/stderror.o \
+    stdutil/src/stdhash.o \
+    stdutil/src/stdskl.o \
+    stdutil/src/stdit.o \
+    stdutil/src/stdutil.o \
+    stdutil/src/stdarr.o \
+    stdutil/src/stddll.o
+    
+
+LIBSPREAD_OBJS = \
+    libspread/sp.o \
+    libspread/fl.o \
+    libspread/scatp.o
+
+all: spread
+
+spread: $(DAEMON_OBJS) $(LIBSPREAD_OBJS)  $(SPU_OBJS) $(STDUTIL_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(DAEMON_OBJS) $(LIBSPREAD_OBJS) $(SPU_OBJS) $(STDUTIL_OBJS) $(LDLIBS)
+
+%.o: %.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+clean:
+	rm -f spread
+	rm -f daemon/*.o libspread/*.o
+
+

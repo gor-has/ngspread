@@ -65,7 +65,9 @@
 #ifndef ARCH_PC_WIN95
 /* If we aren't using windows... we can use autoconf */
 
-#  include "config.h"
+// #  include "config.h"
+#include "ng_config.h"
+
 
 #  ifdef WORDS_BIGENDIAN
 #    define ARCH_ENDIAN 0x00000000
