@@ -90,8 +90,11 @@ static void E_exit_events_wrapper( int signum )
 }
 
 #ifdef USE_SPREAD_MAIN
+
 int SpreadMain(int argc, char *argv[])
+
 #else
+
 int main(int argc, char *argv[])
 #endif
 {
@@ -243,12 +246,16 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-static  void    Print_help(void)
+static  void Print_help(void)
 {
-    Alarmp( SPLOG_FATAL, SYSTEM, "Usage: spread\n%s\n%s\n%s\n",
-           "\t[-l y/n]          : print log",
-           "\t[-n <proc name>]  : force computer name",
-           "\t[-c <file name>]  : specify configuration file" );
+
+    printf("Usage: spread\n");
+    printf("\t[-l y/n]          : print log\n");
+    printf("\t[-n <proc name>]  : force computer name\n");
+    printf("\t[-c <file name>]  : specify configuration file\n");
+    
+    exit(0);
+        
 }
 
 

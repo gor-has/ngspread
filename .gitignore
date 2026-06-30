@@ -1,0 +1,165 @@
+
+#------------------------------------------------------
+# ngspread
+#------------------------------------------------------
+
+#
+# Object files
+#
+*.o
+*.lo
+*.a
+*.so
+*.so.*
+*.dylib
+
+#
+# Executables
+#
+spread
+s
+r
+spflooder
+spmonitor
+spuser
+sptuser
+fl_user
+fl_time_memb
+simple_user
+stats
+user
+flooder
+spping
+
+#
+# Dependency files
+#
+*.d
+*.gcda
+*.gcno
+*.gcov
+
+#
+# Core dumps
+#
+core
+core.*
+vgcore.*
+*.core
+
+#
+# Editor files
+#
+*~
+*.swp
+*.swo
+.#*
+\#*\#
+
+#
+# Emacs
+#
+.auto-save-list/
+.tramp
+.elc
+
+#
+# VS Code
+#
+.vscode/
+
+#
+# CLion / IntelliJ
+#
+.idea/
+
+#
+# Eclipse
+#
+.project
+.cproject
+.settings/
+
+#
+# CMake (if someone experiments)
+#
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.cmake
+
+#
+# Autotools generated files
+#
+autom4te.cache/
+aclocal.m4
+config.log
+config.status
+config.cache
+libtool
+stamp-h1
+
+#
+# Generated Makefiles
+#
+Makefile
+daemon/Makefile
+docs/Makefile
+examples/Makefile
+libspread/Makefile
+libspread-util/Makefile
+stdutil/Makefile
+
+#
+# Generated headers
+#
+config.h
+daemon/config.h
+libspread-util/src/config.h
+stdutil/src/stdutil/private/stdarch_autoconf.h
+
+#
+# Generated parser files
+# (uncomment when they are generated instead of stored)
+#
+# daemon/lex.yy.c
+# daemon/y.tab.c
+# daemon/y.tab.h
+
+#
+# Build directories
+#
+build/
+out/
+Debug/
+Release/
+
+#
+# Archives
+#
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+#
+# Test output
+#
+*.log
+
+#
+# Object files
+#
+*.o
+
+#
+# Executables
+#
+spread
+
+# Librarys
+*.a
+*.so
+*.so.*
+
+

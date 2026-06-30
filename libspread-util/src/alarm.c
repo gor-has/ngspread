@@ -244,7 +244,8 @@ static void Internal_Alarmp(int16 priority, int32 mask, char *message, va_list a
 #ifndef USE_THREADED_ALARM
           fprintf(stdout, "Exit caused by Alarm!\n");
 #  ifndef ARCH_PC_WIN95
-          abort();
+          //abort();
+	  exit(1);
 #  else
           exit(1);
 #  endif
@@ -643,7 +644,8 @@ static void Threaded_Alarm_Exit(void)
 
     fprintf(stdout, "Exit caused by Alarm!\n");
 #ifndef ARCH_PC_WIN95
-    abort();
+    //abort();
+    exit(1):
 #else
     exit(1);
 #endif

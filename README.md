@@ -1,6 +1,6 @@
 # ngspread
 
-ngspread is a modernization of the Spread Toolkit.
+NGSpread — Next Generation Spread Toolkit
 
 The original upstream source was imported unchanged and is preserved
 by the Git tag:
@@ -9,5 +9,6 @@ by the Git tag:
 
 All subsequent commits represent modernization, cleanup and new
 development.
+
 
 
