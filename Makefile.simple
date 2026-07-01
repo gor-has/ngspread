@@ -58,16 +58,21 @@ LIBSPREAD_OBJS = \
     libspread/fl.o \
     libspread/scatp.o
 
-all: spread
+all: spread spuser
 
 spread: $(DAEMON_OBJS) $(LIBSPREAD_OBJS)  $(SPU_OBJS) $(STDUTIL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(DAEMON_OBJS) $(LIBSPREAD_OBJS) $(SPU_OBJS) $(STDUTIL_OBJS) $(LDLIBS)
+
+
+spuser: examples/user.o $(LIBSPREAD_OBJS) $(SPU_OBJS) $(STDUTIL_OBJS)
+	$(CC) $(LDFLAGS) -o $@ examples/user.o $(LIBSPREAD_OBJS) $(SPU_OBJS) $(STDUTIL_OBJS) $(LDLIBS)
+	
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f spread
+	rm -f spread spuser
 	rm -f daemon/*.o libspread/*.o
 
 
