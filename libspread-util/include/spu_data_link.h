@@ -52,18 +52,18 @@
 #define         IS_MCAST_ADDR(addr32)     ( ( (addr32) & 0xF0000000 ) == 0xE0000000 )    /* host byte order */
 #define         IS_MCAST_ADDR_NET(addr32) ( ( (unsigned char*) &(addr32) )[0] == 0xE0 )  /* network byte order */
 
-void    DL_close_channel(channel chan);
+void    DL_close_channel(sp_channel chan);
 
-channel	DL_init_channel( int32 channel_type, int16 port, int32 mcast_address, int32 interface_address );
-int	DL_send( channel chan, int32 address, int16 port, const sys_scatter *scat );
-int	DL_recv( channel chan, sys_scatter *scat );
-int	DL_recvfrom( channel chan, sys_scatter *scat, int *src_address, unsigned short *src_port );
+sp_channel	DL_init_channel( int32 channel_type, int16 port, int32 mcast_address, int32 interface_address );
+int	DL_send( sp_channel chan, int32 address, int16 port, const sys_scatter *scat );
+int	DL_recv( sp_channel chan, sys_scatter *scat );
+int	DL_recvfrom( sp_channel chan, sys_scatter *scat, int *src_address, unsigned short *src_port );
 
-channel DL_init_channel_gen(int32 channel_type, const spu_addr *mcast_address, const spu_addr *interface_address);
-int     DL_join_multicast_gen(channel chan, const spu_addr *mcast_addr, const spu_addr *if_addr);
-int     DL_send_gen(channel chan, const sys_scatter *scat);
-int     DL_recv_gen(channel chan, sys_scatter *scat);
-int     DL_sendto_gen(channel chan, const sys_scatter *scat, const spu_addr *dst);
-int     DL_recvfrom_gen(channel chan, sys_scatter *scat, spu_addr *src);
+sp_channel DL_init_channel_gen(int32 channel_type, const spu_addr *mcast_address, const spu_addr *interface_address);
+int     DL_join_multicast_gen(sp_channel chan, const spu_addr *mcast_addr, const spu_addr *if_addr);
+int     DL_send_gen(sp_channel chan, const sys_scatter *scat);
+int     DL_recv_gen(sp_channel chan, sys_scatter *scat);
+int     DL_sendto_gen(sp_channel chan, const sys_scatter *scat, const spu_addr *dst);
+int     DL_recvfrom_gen(sp_channel chan, sys_scatter *scat, spu_addr *src);
 
 #endif

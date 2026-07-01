@@ -72,7 +72,7 @@ WSADATA		WSAData;
 #include "spu_data_link.h"
 #include "spu_alarm.h"
 
-static	channel		Chan;
+static	sp_channel		Chan;
 static	sp_time		Send_partition_timeout = { 25, 0 };
 static	sp_time		Send_status_timeout;
 static  int             Status_active = 0;

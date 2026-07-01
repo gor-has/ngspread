@@ -1,6 +1,12 @@
 CC      = gcc
 
-CFLAGS  = -O2 -Wall -Wextra -std=c99 -fcommon
+CFLAGS  = -O2 -Wall -Wextra `pkg-config glib-2.0 --cflags` -std=c99 -fcommon
+
+CFLAGS += \
+    -DNG_VERSION=\"$(VERSION)\" \
+    -DNG_GIT_HASH=\"$(GIT_HASH)\" \
+    -DNG_BUILD_DATE=\"$(BUILD_DATE)\"
+
 
 CPPFLAGS = -D_GNU_SOURCE -D_DEFAULT_SOURCE \
 	 -Iinclude\
@@ -10,7 +16,7 @@ CPPFLAGS = -D_GNU_SOURCE -D_DEFAULT_SOURCE \
 	 -Istdutil/src
 
 LDFLAGS =
-LDLIBS  = -lcrypt
+LDLIBS  = `pkg-config glib-2.0 --libs` -lcrypt 
 
 DAEMON_OBJS = \
     daemon/spread.o \
@@ -31,7 +37,8 @@ DAEMON_OBJS = \
     daemon/acp-permit.o \
     daemon/ip_enum.o \
     daemon/y.tab.o \
-    daemon/lex.yy.o
+    daemon/lex.yy.o \
+    daemon/version.o
 
 
 SPU_OBJS = \

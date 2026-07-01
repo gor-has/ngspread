@@ -59,7 +59,7 @@ static  void    Usage( int argc, char *argv[] );
 
 int main( int argc, char *argv[] )
 {
-	channel chan;
+	sp_channel chan;
 	sys_scatter scat;
 	char	buf[100000];
 	int	ret,i;

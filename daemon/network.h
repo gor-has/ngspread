@@ -50,12 +50,12 @@ int     Net_queue_bcast(sys_scatter *scat);
 int     Net_flush_bcast(void);
 int	Net_scast( int16 seg_index, sys_scatter *scat );
 int	Net_ucast( int32 proc_id, sys_scatter *scat );
-int	Net_recv ( channel fd, sys_scatter *scat );
+int	Net_recv ( sp_channel fd, sys_scatter *scat );
 int	Net_send_token( sys_scatter *scat );
-int	Net_recv_token( channel fd, sys_scatter *scat );
+int	Net_recv_token( sp_channel fd, sys_scatter *scat );
 int	Net_ucast_token( int32 proc_id, sys_scatter *scat );
-channel *Net_bcast_channel(void);
-channel *Net_token_channel(void);
+sp_channel *Net_bcast_channel(void);
+sp_channel *Net_token_channel(void);
 void    Net_num_channels(int *num_bcast, int *num_token);
 
 void    Net_set_partition(int16 *new_partition);

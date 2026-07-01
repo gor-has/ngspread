@@ -48,7 +48,7 @@
 #include "spu_alarm.h"
 
 static	sp_time		Start_time;
-static	channel		Report_channel;
+static	sp_channel		Report_channel;
 static	sys_scatter	Report_scat;
 static	packet_header	Pack;
 

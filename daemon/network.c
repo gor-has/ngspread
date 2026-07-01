@@ -51,9 +51,9 @@
 /********************************************************************************
  ********************************************************************************/
 
-static	channel		Bcast_channel[MAX_INTERFACES_PROC + MAX_ADDRS_SEGMENT];
-static  channel		Token_channel[MAX_INTERFACES_PROC];
-static	channel		Send_channel;
+static	sp_channel		Bcast_channel[MAX_INTERFACES_PROC + MAX_ADDRS_SEGMENT];
+static  sp_channel		Token_channel[MAX_INTERFACES_PROC];
+static	sp_channel		Send_channel;
 
 static  int             Num_bcast_channels;
 static  int             Num_token_channels;
@@ -587,10 +587,10 @@ static int Net_handle_monitor(sys_scatter *scat, spu_addr src_addr)
   return 0;
 }
 
-/********************************************************************************
- ********************************************************************************/
-
-int	Net_recv ( channel fd, sys_scatter *scat )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int	Net_recv ( sp_channel fd, sys_scatter *scat )
 {
 	packet_header  *pack_ptr = (packet_header*) scat->elements[0].buf;
         spu_addr        src_addr = { 0 };
@@ -777,10 +777,11 @@ int	Net_send_token( sys_scatter *scat )
         return ( DL_sendto_gen( Send_channel, scat, &Token_addr ) );
 }
 
-/********************************************************************************
- ********************************************************************************/
 
-int	Net_recv_token( channel fd, sys_scatter *scat )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int	Net_recv_token( sp_channel fd, sys_scatter *scat )
 {
 	token_header   *token_ptr = (token_header*) scat->elements[0].buf;
         spu_addr        src_addr  = { 0 };
@@ -934,7 +935,7 @@ void     Net_num_channels(int *num_bcast, int *num_token)
 /********************************************************************************
  ********************************************************************************/
 
-channel *Net_bcast_channel()
+sp_channel *Net_bcast_channel()
 {
 	return( &(Bcast_channel[0]) );
 }
@@ -942,7 +943,7 @@ channel *Net_bcast_channel()
 /********************************************************************************
  ********************************************************************************/
 
-channel *Net_token_channel()
+sp_channel *Net_token_channel()
 {
 	return( &(Token_channel[0]) );
 }

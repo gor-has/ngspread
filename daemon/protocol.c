@@ -126,8 +126,8 @@ static  void    Prot_handle_conf_reload( sys_scatter *scat );
 void Prot_init( void )
 {
         int      i, num_bcast, num_token;
-        channel *bcast_channels;
-        channel *token_channels;
+        sp_channel *bcast_channels;
+        sp_channel *token_channels;
 
         Mem_init_object( PACK_HEAD_OBJ, "pack_head", sizeof( packet_header ), MAX_PACKETS_IN_STRUCT, 0 );
         Mem_init_object( PACKET_BODY, "packet_body", sizeof( packet_body ), MAX_PACKETS_IN_STRUCT, 0 );
@@ -269,7 +269,7 @@ down_link *Prot_Create_Down_Link( message_obj *msg, int type, int mbox, int cur_
         return(down_ptr);
 }
 
-static void Prot_handle_bcast( channel fd, int dummy, void *dummy_p )
+static void Prot_handle_bcast( sp_channel fd, int dummy, void *dummy_p )
 {
         packet_header   *pack_ptr;
         packet_body     *pack_body_ptr;
@@ -282,8 +282,8 @@ static void Prot_handle_bcast( channel fd, int dummy, void *dummy_p )
         int             i, ret;
         /* int          r1,r2; */
         int             num_bcast, num_token;
-        channel         *bcast_channels;
-        channel         *token_channels;
+        sp_channel         *bcast_channels;
+        sp_channel         *token_channels;
 
         received_bytes = Net_recv( fd, &New_pack );
 
@@ -500,7 +500,7 @@ static void Prot_handle_bcast( channel fd, int dummy, void *dummy_p )
         New_pack.elements[1].buf = (char *) new( PACKET_BODY );
 }
 
-void Prot_handle_token( channel fd, int dummy, void *dummy_p )
+void Prot_handle_token( sp_channel fd, int dummy, void *dummy_p )
 {
         int             new_ptr;
         int             num_retrans, num_allowed, num_sent;
@@ -514,8 +514,8 @@ void Prot_handle_token( channel fd, int dummy, void *dummy_p )
         int             max_rtr_seq;
         int             i, ret;
         int             num_bcast, num_token;
-        channel         *bcast_channels;
-        channel         *token_channels;
+        sp_channel         *bcast_channels;
+        sp_channel         *token_channels;
         membership_id   memb_id;
 
         /*      int             r1,r2;*/

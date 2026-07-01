@@ -1,6 +1,6 @@
 /*
  * The Spread Toolkit.
- *     
+ *
  * The contents of this file are subject to the Spread Open-Source
  * License, Version 1.0 (the ``License''); you may not use
  * this file except in compliance with the License.  You may obtain a
@@ -10,9 +10,9 @@
  *
  * or in the file ``license.txt'' found in this distribution.
  *
- * Software distributed under the License is distributed on an AS IS basis, 
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License 
- * for the specific language governing rights and limitations under the 
+ * Software distributed under the License is distributed on an AS IS basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
  * License.
  *
  * The Creators of Spread are:
@@ -46,8 +46,11 @@
 #include "log.h"
 #include "sess_body.h"
 #include "spu_alarm.h"
-
 #include "stdutil/stdutil.h"
+
+// Glib
+#include <glib.h>
+
 
 #ifndef ARCH_PC_WIN95
 #  include <grp.h>
@@ -70,7 +73,6 @@ static	int		Log;
 static  const char            Spread_build_date[] = SPREAD_BUILD_DATE;
 
 static	void	Invalid_privilege_decrease(char *user, char *group);
-static	void	Usage(int argc, char *argv[]);
 
 /* auth-null.c: */
 void null_init(void);
@@ -79,7 +81,7 @@ void ip_init(void);
 /* acp-permit.c: */
 void permit_init(void);
 
-static void Bye( void ) 
+static void Bye( void )
 {
         Alarmp( SPLOG_PRINT, PRINT, "Spread daemon exiting normally!\n" );
 }
@@ -89,87 +91,203 @@ static void E_exit_events_wrapper( int signum )
         E_exit_events_async_safe();
 }
 
-#ifdef USE_SPREAD_MAIN
-
-int SpreadMain(int argc, char *argv[])
-
-#else
-
-int main(int argc, char *argv[])
-#endif
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
 {
-#ifdef	ARCH_PC_WIN95
-	int	ret;
-#endif
 
-#ifndef ARCH_PC_WIN95
-	struct group  *grp;
-	struct passwd *pwd;
-#endif
+   printf("%s", message);
 
-        atexit( Bye );
-        signal( SIGINT,  E_exit_events_wrapper );
-        signal( SIGTERM, E_exit_events_wrapper );
+}
 
-	Alarm_set_types( CONF_SYS ); 
-        Alarm_set_priority( SPLOG_INFO );
 
-	Alarmp( SPLOG_PRINT, SYSTEM, "/===========================================================================\\\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| The Spread Toolkit                                                        |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| Copyright (c) 1993-2016 Spread Concepts LLC                               |\n"); 
-	Alarmp( SPLOG_PRINT, SYSTEM, "| All rights reserved.                                                      |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| The Spread toolkit is licensed under the Spread Open-Source License.      |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| You may only use this software in compliance with the License.            |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| A copy of the license can be found at http://www.spread.org/license       |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "| This product uses software developed by Spread Concepts LLC for use       |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "| in the Spread toolkit. For more information about Spread,                 |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "| see http://www.spread.org                                                 |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| This software is distributed on an \"AS IS\" basis, WITHOUT WARRANTY OF     |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| ANY KIND, either express or implied.                                      |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| Creators:                                                                 |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|    Yair Amir             yairamir@cs.jhu.edu                              |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|    Michal Miskin-Amir    michal@spreadconcepts.com                        |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|    Jonathan Stanton      jonathan@spreadconcepts.com                      |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    John Schultz          jschultz@spreadconcepts.com                      |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| Major Contributors:                                                       |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    Amy Babay            babay@cs.jhu.edu - accelerated ring protocol.     |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    Ryan Caudy           rcaudy@gmail.com - contribution to process groups.|\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    Claudiu Danilov      claudiu@acm.org - scalable, wide-area support.    |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    Cristina Nita-Rotaru crisn@cs.purdue.edu - GC security.                |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    Theo Schlossnagle    jesus@omniti.com - Perl, autoconf, old skiplist.  |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|    Dan Schoenblum       dansch@cnds.jhu.edu - Java interface.             |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| Special thanks to the following for discussions and ideas:                |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|    Ken Birman, Danny Dolev, Jacob Green, Mike Goodrich, Ben Laurie,       |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|    David Shaw, Gene Tsudik, Robbert VanRenesse.                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "| Partial funding provided by the Defense Advanced Research Project Agency  |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "| (DARPA) and the National Security Agency (NSA) 2000-2004. The Spread      |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "| toolkit is not necessarily endorsed by DARPA or the NSA.                  |\n");
-        Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| For a full list of contributors, see Readme.txt in the distribution.      |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| WWW:     www.spread.org     www.spreadconcepts.com                        |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| Contact: info@spreadconcepts.com                                          |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
-	Alarmp( SPLOG_PRINT, SYSTEM, "| Version %d.%02d.%02d Built %-17s                                   |\n", 
-		(int)SP_MAJOR_VERSION, (int)SP_MINOR_VERSION, (int)SP_PATCH_VERSION, Spread_build_date );
-	Alarmp( SPLOG_PRINT, SYSTEM, "\\===========================================================================/\n");
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void credits_print( void)
+{
 
-	Usage( argc, argv );
+   Alarmp( SPLOG_PRINT, SYSTEM, "/===========================================================================\\\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| The Spread Toolkit                                                        |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Copyright (c) 1993-2016 Spread Concepts LLC                               |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| All rights reserved.                                                      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| The Spread toolkit is licensed under the Spread Open-Source License.      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| You may only use this software in compliance with the License.            |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| A copy of the license can be found at http://www.spread.org/license       |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| This product uses software developed by Spread Concepts LLC for use       |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| in the Spread toolkit. For more information about Spread,                 |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| see http://www.spread.org                                                 |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| This software is distributed on an \"AS IS\" basis, WITHOUT WARRANTY OF     |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| ANY KIND, either express or implied.                                      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Creators:                                                                 |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Yair Amir             yairamir@cs.jhu.edu                              |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Michal Miskin-Amir    michal@spreadconcepts.com                        |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Jonathan Stanton      jonathan@spreadconcepts.com                      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    John Schultz          jschultz@spreadconcepts.com                      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Major Contributors:                                                       |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Amy Babay            babay@cs.jhu.edu - accelerated ring protocol.     |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Ryan Caudy           rcaudy@gmail.com - contribution to process groups.|\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Claudiu Danilov      claudiu@acm.org - scalable, wide-area support.    |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Cristina Nita-Rotaru crisn@cs.purdue.edu - GC security.                |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Theo Schlossnagle    jesus@omniti.com - Perl, autoconf, old skiplist.  |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Dan Schoenblum       dansch@cnds.jhu.edu - Java interface.             |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Special thanks to the following for discussions and ideas:                |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    Ken Birman, Danny Dolev, Jacob Green, Mike Goodrich, Ben Laurie,       |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|    David Shaw, Gene Tsudik, Robbert VanRenesse.                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Partial funding provided by the Defense Advanced Research Project Agency  |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| (DARPA) and the National Security Agency (NSA) 2000-2004. The Spread      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| toolkit is not necessarily endorsed by DARPA or the NSA.                  |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| For a full list of contributors, see Readme.txt in the distribution.      |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| WWW:     www.spread.org     www.spreadconcepts.com                        |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Contact: info@spreadconcepts.com                                          |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "|                                                                           |\n");
+   Alarmp( SPLOG_PRINT, SYSTEM, "| Version %d.%02d.%02d Built %-17s                                   |\n",
+	   (int)SP_MAJOR_VERSION, (int)SP_MINOR_VERSION, (int)SP_PATCH_VERSION, Spread_build_date );
+   Alarmp( SPLOG_PRINT, SYSTEM, "\\===========================================================================/\n");
+   
+}
 
-#ifdef	ARCH_PC_WIN95
 
-	ret = WSAStartup( MAKEWORD(2,0), &WSAData );
-	if( ret != 0 )
-            Alarmp( SPLOG_FATAL, NETWORK, "Spread: winsock initialization error %d\n", ret );
+#define DEFAULT_LOG_FILE "spread.log"
+#define DEFAULT_LOG_DIR "/usr/local/rx/log/"
 
-#endif	/* ARCH_PC_WIN95 */
+#define DEFAULT_DEAMON_NAME "4803@127.0.0.1"
+#define DEFAULT_CONFIG_FILE "/usr/local/rx/etc/spread_config.json"
+#define DEFAULT_LOG_LEVEL "WARNING"
+
+static gchar *log_file   = DEFAULT_LOG_FILE;
+static gchar* log_dir = DEFAULT_LOG_DIR;
+static gchar* log_level = DEFAULT_LOG_LEVEL;
+
+static gchar *daemon_name   = DEFAULT_DEAMON_NAME;
+static gchar *config_file   = DEFAULT_CONFIG_FILE;
+
+static gboolean about = FALSE;
+static gboolean version = FALSE;
+
+//----------------------------------------------------------------------
+// General options
+//----------------------------------------------------------------------
+static GOptionEntry general_options[] =
+{
+   { "version", 'v', 0,  G_OPTION_ARG_NONE, &version, "Version", NULL},
+   { "about", 'a', 0, G_OPTION_ARG_NONE, &about, "Print credit page.", NULL}, 
+   {NULL}
+};
+
+
+//----------------------------------------------------------------------
+// Config options
+//----------------------------------------------------------------------
+static GOptionEntry config_options[] =
+{
+   { "name", 'n', 0, G_OPTION_ARG_STRING, &daemon_name, "Override local daemon name", NULL},
+   { "config-file", 'c', 0, G_OPTION_ARG_STRING, &config_file, "Configuration file.", NULL},
+   {NULL}
+};
+
+//----------------------------------------------------------------------
+// Log options
+//----------------------------------------------------------------------
+static GOptionEntry log_options[] =
+{
+   { "log-dir", 'd', 0, G_OPTION_ARG_STRING, &log_dir, "Log directory", NULL},
+   { "log-file", 'l', 0, G_OPTION_ARG_STRING, &log_file, "Log file.", NULL},
+   { "log-level", 0, 0, G_OPTION_ARG_STRING, &log_level, "Log level", "LEVEL" },
+   {NULL}
+};
+
+
+
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int main(int argc, char *argv[])
+{
+
+
+   GError* error = NULL;
+   GOptionContext* context = NULL;
+
+   struct group  *grp;
+   struct passwd *pwd;
+
+   // Install log handler
+   g_log_set_handler(NULL, G_LOG_LEVEL_WARNING|G_LOG_LEVEL_MESSAGE|G_LOG_FLAG_FATAL, log_handler, NULL);
+
+   // Parse arguments
+   context = g_option_context_new("- NGspread");
+
+   GOptionGroup *group;
+
+   group = g_option_group_new("general",
+			      "General Options",
+			      "General Options",
+			      NULL,
+			      NULL);
+
+   g_option_group_add_entries(group, general_options);
+   g_option_context_set_main_group(context, group);
+
+   
+   group = g_option_group_new("config",
+			      "Configuration",
+			      "Configuration",
+			      NULL,
+			      NULL);
+   
+   g_option_group_add_entries(group, config_options);
+   g_option_context_add_group(context, group);
+   
+   group = g_option_group_new("logging",
+			      "Logging",
+			      "Logging",
+			      NULL,
+			      NULL);
+   g_option_group_add_entries(group, log_options);
+   g_option_context_add_group(context, group);
+
+
+   
+   // g_option_context_add_main_entries(context, entries, NULL);
+
+   if(!g_option_context_parse(context, &argc, &argv, &error))
+   {
+      g_message("%s: option parsing failed: %s", __PRETTY_FUNCTION__, error->message);
+      return -1;
+   }
+
+
+   atexit( Bye );
+   
+   signal( SIGINT,  E_exit_events_wrapper );
+   signal( SIGTERM, E_exit_events_wrapper );
+
+   Alarm_set_types( CONF_SYS );
+   Alarm_set_priority( SPLOG_INFO );
+
+   if(version)
+   {
+      version_print();
+      exit(0);
+   }
+   
+   if (about)
+   {
+      credits_print();
+      exit(0);
+   }
+   
 
         /* initialize each valid authentication protocol */
         null_init();
@@ -185,7 +303,7 @@ int main(int argc, char *argv[])
 	Conf_init( Config_file, My_name );
 
 	E_init();
-	
+
 	{
 	  sp_time t = E_get_time();
 
@@ -209,12 +327,12 @@ int main(int argc, char *argv[])
 
 	Sess_init();
 
-	Stat_init(); 
+	Stat_init();
 
 #ifndef	ARCH_PC_WIN95
 
 	/* Yupp, we're paranoid */
- 
+
 	if (geteuid() != (uid_t) 0) {
             Alarmp( SPLOG_WARNING, SECURITY, "Spread: not running as root, won't chroot\n" );
 	}
@@ -238,27 +356,21 @@ int main(int argc, char *argv[])
 #endif	/* ARCH_PC_WIN95 */
 
 	if( Log ) Log_init();
-        
+
 	E_handle_events();
 
         Sess_fini();
 
 	return 0;
 }
-
-static  void Print_help(void)
-{
-
-    printf("Usage: spread\n");
-    printf("\t[-l y/n]          : print log\n");
-    printf("\t[-n <proc name>]  : force computer name\n");
-    printf("\t[-c <file name>]  : specify configuration file\n");
-    
-    exit(0);
-        
-}
+//----------------------------------------------------------------------
+//  end main
+//----------------------------------------------------------------------
 
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static	void	Invalid_privilege_decrease(char *user, char *group)
 {
     Alarmp( SPLOG_FATAL, SECURITY, "Spread: FAILED privilege drop to user/group "
@@ -266,49 +378,7 @@ static	void	Invalid_privilege_decrease(char *user, char *group)
            user, group );
 }
 
-static	void	Usage(int argc, char *argv[])
-{
-	My_name = 0; /* NULL */
-	Log	= 0;
-	strcpy( Config_file, "spread.conf" );
 
-	while( --argc > 0 )
-	{
-		argv++;
-
-		if( !strncmp( *argv, "-n", 2 ) )
-		{
-                        if (argc < 2) Print_help();
-			if( strlen( argv[1] ) > MAX_PROC_NAME-1 ) /* -1 for the null */
-                              Alarmp( SPLOG_FATAL, SYSTEM, "Usage: proc name %s too long\n",
-					argv[1] );
-
-			memcpy( My_name_buf, argv[1], strlen( argv[1] ) );
-			My_name = My_name_buf;
-
-			argc--; argv++;
-
-		}else if( !strncmp( *argv, "-c", 2 ) ){
-                        if (argc < 2) Print_help();
-			if (strlen(argv[1]) >= sizeof(Config_file)) {
-				Alarmp(SPLOG_FATAL, SYSTEM, "Usage: config file name too long\n", argv[1]);
-			}
-			strcpy( Config_file, argv[1] );
-
-			argc--; argv++;
-
-		}else if( !strncmp( *argv, "-l", 2 ) ){
-                        if (argc < 2) Print_help();
-			if( !strcmp( argv[1], "y" ) )
-				Log = 1;
-			else if( !strcmp( argv[1], "n" ) )
-				Log = 0;
-			else Print_help();
-
-			argc--; argv++;
-
-		}else{
-                        Print_help();
-		}
-	}
-}
+//----------------------------------------------------------------------
+// EOF
+//----------------------------------------------------------------------

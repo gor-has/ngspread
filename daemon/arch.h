@@ -254,7 +254,11 @@ char *sock_strerror(int err);
 #define		Flip_int16( t )	        ( ( ( (t) >> 8 ) & 0x00ff ) | ( ( (t) << 8 ) & 0xff00 ) )
 #define		Flip_int32( t )	        ( ( ( (t) >> 24 ) & 0x000000ff ) | ( ( (t) >> 8 ) & 0x0000ff00 ) | ( ( (t) << 8 ) & 0x00ff0000 ) | ( ( (t) << 24 ) & 0xff000000 ) )
 
-#define		channel			int
+
+//#define		channel			int
+
+typedef int sp_channel;
+
 #define		mailbox			int
 
 typedef	struct
