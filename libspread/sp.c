@@ -226,7 +226,8 @@ static int wait_nointr( int sock, int readable, const sp_time *abs_time_out )
 
     do
     {
-        struct timeval sel_time_ptr = NULL;
+       //struct timeval *sel_time_ptr = NULL;
+        struct timeval* sel_time_ptr = NULL;
         struct timeval sel_time;
         fd_set         sel_set;
 
@@ -248,8 +249,14 @@ static int wait_nointr( int sock, int readable, const sp_time *abs_time_out )
             sel_time_ptr     = &sel_time;
         }
 
-        tmp = select( s + 1, ( readable ? &sel_set : NULL ), ( readable ? NULL : &sel_set ), NULL, sel_time_ptr );
+        // tmp = select( sock + 1, ( readable ? &sel_set : NULL ), ( readable ? NULL : &sel_set ), NULL, sel_time_ptr );
 
+	tmp = select( sock + 1,
+              ( readable ? &sel_set : NULL ),
+              ( readable ? NULL : &sel_set ),
+              NULL,
+              sel_time_ptr );
+	
         switch ( tmp )
         {
         case 1:  ret =  0; break;
@@ -665,8 +672,9 @@ static  void    sp_initialize(void)
 static void set_large_socket_buffers(int s)
 {
     int i, on, ret;
-    sockopt_len_t onlen;
-
+    // sockopt_len_t onlen;
+    socklen_t onlen;
+    
     for( i=10; i <= 200; i+=5 )
     {
         on = 1024*i;

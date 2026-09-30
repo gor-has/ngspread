@@ -103,7 +103,7 @@ stamp-h1
 #
 # Generated Makefiles
 #
-Makefile
+# Makefile
 daemon/Makefile
 docs/Makefile
 examples/Makefile

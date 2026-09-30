@@ -1,0 +1,11 @@
+prefix=@PREFIX@
+exec_prefix=${prefix}
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: ngspread
+Description: ngspread / Spread messaging client library
+Version: 1.0.0
+Libs: -L${libdir} -lspread -ldl
+Cflags: -I${includedir}/ngspread
+Requires.private: glib-2.0
