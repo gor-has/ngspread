@@ -1,9 +1,8 @@
 # NGspread configuration placeholder
 #
-# Replace this file with the actual NGspread/Spread configuration.
+# Replace this with the real Spread configuration and save it as:
 #
-# It will be installed as:
+#     ./spread.conf
 #
-#     /etc/ngspread/spread.conf
-#
-# Existing /etc/ngspread/spread.conf is not overwritten by Makefile.linux.
+# Makefile.linux installs it as /etc/ngspread/spread.conf and does not
+# overwrite an existing installed configuration.

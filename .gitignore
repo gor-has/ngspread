@@ -3,6 +3,7 @@
 # ngspread
 #------------------------------------------------------
 
+
 #
 # Object files
 #
@@ -164,6 +165,9 @@ spread
 
 examples/*.o
 spuser
+
+*.zip
+spread.conf
 
 
 

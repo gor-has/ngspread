@@ -36,6 +36,9 @@
 #ifndef INC_ARCH
 #define INC_ARCH
 
+
+
+
 #include <stdint.h>
 
 /*
@@ -257,7 +260,15 @@ char *sock_strerror(int err);
 
 //#define		channel			int
 
+
+#ifndef SP_CHANNEL_DEFINED
+#define SP_CHANNEL_DEFINED
 typedef int sp_channel;
+#endif
+
+// typedef int sp_channel;
+
+
 
 #define		mailbox			int
 

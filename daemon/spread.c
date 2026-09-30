@@ -65,7 +65,7 @@
 WSADATA		WSAData;
 #endif	/* ARCH_PC_WIN95 */
 
-static	char		*My_name;
+static	char		*My_name = NULL;
 static	char		My_name_buf[80];
 static	char		Config_file[512];
 static	int		Log;
@@ -161,7 +161,8 @@ static void credits_print( void)
 #define DEFAULT_LOG_FILE "spread.log"
 #define DEFAULT_LOG_DIR "/usr/local/rx/log/"
 
-#define DEFAULT_DEAMON_NAME "4803@127.0.0.1"
+//#define DEFAULT_DEAMON_NAME "4803@127.0.0.1"
+#define DEFAULT_DEAMON_NAME NULL
 #define DEFAULT_CONFIG_FILE "/usr/local/rx/etc/spread_config.json"
 #define DEFAULT_LOG_LEVEL "WARNING"
 
@@ -300,7 +301,8 @@ int main(int argc, char *argv[])
         /* Initialize Access Control & Authentication */
         Acm_init();
 
-	Conf_init( Config_file, My_name );
+	//Conf_init( Config_file, My_name );
+	Conf_init( config_file, My_name );
 
 	E_init();
 

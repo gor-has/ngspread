@@ -1,99 +1,63 @@
-NGspread Linux/systemd installation
-===================================
+NGspread Linux/systemd installation - version 3
+================================================
 
-Files
------
+Installed layout:
 
-Makefile.linux
-    Installs the already-built spread daemon, configuration file and
-    systemd service.
-
-ngspread.service
-    systemd unit for NGspread.
-
-spread.conf.example
-    Placeholder/example configuration file. Replace its contents with
-    the actual NGspread/Spread configuration before starting the service.
-
-
-Installed locations
--------------------
-
-    /usr/local/sbin/spread
-    /etc/ngspread/spread.conf
+    /usr/local/sbin/spread        NGspread daemon
+    /usr/local/bin/spuser         interactive Spread client
+    /etc/ngspread/spread.conf     configuration
     /etc/systemd/system/ngspread.service
+    /var/run/spread               runtime/chroot directory
 
+The installer creates the system account:
 
-Installation
-------------
+    spread:spread
 
-First build NGspread so that ./spread exists and is executable.
+Before installation, build both:
 
-Copy Makefile.linux and ngspread.service to the NGspread source directory.
-Create or copy the real configuration as:
+    spread
+    spuser
+
+and provide the real configuration as:
 
     ./spread.conf
 
-Then install:
+Install:
 
     sudo make -f Makefile.linux install
 
-The installation enables ngspread.service but deliberately does NOT start it.
-
-Review:
-
-    sudo vi /etc/ngspread/spread.conf
-
-Start and inspect:
+Start:
 
     sudo systemctl start ngspread
+
+Status:
+
     sudo systemctl status ngspread
 
 Logs:
 
-    sudo journalctl -u ngspread -n 100
+    sudo journalctl -u ngspread -n 100 --no-pager
 
-or:
+The installed client can then be invoked simply as:
 
-    sudo make -f Makefile.linux logs
+    spuser
 
+Important implementation notes
+------------------------------
 
-Configuration option
---------------------
+Linux linking needs -ldl because events.c uses dladdr().
 
-NGspread accepts:
+The parsed -c/--config-file value must reach Conf_init(). The working call in
+daemon/spread.c is:
 
-    -c, --config-file     Configuration file.
+    Conf_init(config_file, My_name);
 
-The systemd unit therefore starts it as:
+The existing /etc/ngspread/spread.conf is not overwritten.
 
-    /usr/local/sbin/spread -c /etc/ngspread/spread.conf
+systemd RuntimeDirectory=spread recreates /run/spread. On normal Linux
+systems /var/run points to /run.
 
-There is no daemon/background option in the current command-line interface.
-The systemd service consequently uses Type=simple and runs spread in the
-foreground under systemd supervision.
+The current configuration may still use /tmp/4803 for the AF_UNIX socket.
+Moving this into a protected runtime directory remains a later improvement.
 
-
-Useful Makefile targets
------------------------
-
-    sudo make -f Makefile.linux install
-    sudo make -f Makefile.linux enable
-    sudo make -f Makefile.linux start
-    sudo make -f Makefile.linux stop
-    sudo make -f Makefile.linux restart
-    sudo make -f Makefile.linux status
-    sudo make -f Makefile.linux logs
-    sudo make -f Makefile.linux uninstall
-
-
-Notes
------
-
-The install-conf target does not overwrite an existing
-/etc/ngspread/spread.conf.
-
-The uninstall target disables/removes the systemd service but deliberately
-leaves the daemon binary and configuration file in place.
-
-A separate Makefile.bsd can later implement the FreeBSD rc.d installation.
+FreeBSD service installation should be kept separately in Makefile.bsd.

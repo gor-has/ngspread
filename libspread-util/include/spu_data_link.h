@@ -37,6 +37,14 @@
 #ifndef INC_DATA_LINK
 #define INC_DATA_LINK
 
+#ifndef SP_CHANNEL_DEFINED
+#define SP_CHANNEL_DEFINED
+typedef int sp_channel;
+#endif
+
+
+
+
 #include "spu_system.h"
 #include "spu_scatter.h"
 #include "spu_addr.h"

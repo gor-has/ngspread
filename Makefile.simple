@@ -16,7 +16,8 @@ CPPFLAGS = -D_GNU_SOURCE -D_DEFAULT_SOURCE \
 	 -Istdutil/src
 
 LDFLAGS =
-LDLIBS  = `pkg-config glib-2.0 --libs` -lcrypt 
+
+LDLIBS  = `pkg-config glib-2.0 --libs` -lcrypt -ldl
 
 DAEMON_OBJS = \
     daemon/spread.o \
