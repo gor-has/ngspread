@@ -1,0 +1,95 @@
+# Makefile.linux
+#
+# Linux/systemd installation for NGspread.
+# Build the program first with the normal NGspread build Makefile.
+#
+
+PREFIX          ?= /usr/local
+SBINDIR         ?= $(PREFIX)/sbin
+SYSCONFDIR      ?= /etc/ngspread
+SYSTEMD_DIR     ?= /etc/systemd/system
+
+DAEMON          = spread
+DAEMON_SRC      = ./spread
+DAEMON_DST      = $(SBINDIR)/$(DAEMON)
+
+CONF_FILE       = spread.conf
+CONF_SRC        = ./$(CONF_FILE)
+CONF_DST        = $(SYSCONFDIR)/$(CONF_FILE)
+
+SERVICE         = ngspread.service
+SERVICE_DST     = $(SYSTEMD_DIR)/$(SERVICE)
+
+.PHONY: all install install-bin install-conf install-service \
+        enable start stop restart status logs uninstall
+
+all:
+	@echo "Linux installation targets:"
+	@echo "  make -f Makefile.linux install"
+	@echo "  make -f Makefile.linux enable"
+	@echo "  make -f Makefile.linux start"
+	@echo "  make -f Makefile.linux stop"
+	@echo "  make -f Makefile.linux restart"
+	@echo "  make -f Makefile.linux status"
+	@echo "  make -f Makefile.linux logs"
+	@echo "  make -f Makefile.linux uninstall"
+
+install: install-bin install-conf install-service
+	systemctl enable $(SERVICE)
+	@echo
+	@echo "NGspread installed."
+	@echo "Configuration: $(CONF_DST)"
+	@echo "The service has been enabled but not started."
+	@echo
+	@echo "Review the configuration and then start with:"
+	@echo "  systemctl start $(SERVICE)"
+
+install-bin:
+	@test -x $(DAEMON_SRC) || \
+	    { echo "ERROR: $(DAEMON_SRC) does not exist or is not executable"; exit 1; }
+	install -d -m 0755 $(SBINDIR)
+	install -m 0755 $(DAEMON_SRC) $(DAEMON_DST)
+
+install-conf:
+	install -d -m 0755 $(SYSCONFDIR)
+	@if test -f $(CONF_SRC); then \
+	    if test ! -f $(CONF_DST); then \
+	        install -m 0644 $(CONF_SRC) $(CONF_DST); \
+	        echo "Installed $(CONF_DST)"; \
+	    else \
+	        echo "$(CONF_DST) already exists -- not overwritten"; \
+	    fi; \
+	else \
+	    echo "ERROR: $(CONF_SRC) not found"; \
+	    exit 1; \
+	fi
+
+install-service:
+	install -d -m 0755 $(SYSTEMD_DIR)
+	install -m 0644 ngspread.service $(SERVICE_DST)
+	systemctl daemon-reload
+
+enable:
+	systemctl enable $(SERVICE)
+
+start:
+	systemctl start $(SERVICE)
+
+stop:
+	systemctl stop $(SERVICE)
+
+restart:
+	systemctl restart $(SERVICE)
+
+status:
+	systemctl status $(SERVICE)
+
+logs:
+	journalctl -u $(SERVICE) -n 100
+
+uninstall:
+	-systemctl disable --now $(SERVICE)
+	rm -f $(SERVICE_DST)
+	systemctl daemon-reload
+	@echo "$(CONF_DST) has NOT been removed."
+	@echo "$(DAEMON_DST) has NOT been removed."
