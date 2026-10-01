@@ -48,6 +48,8 @@
 #include "spu_alarm.h"
 #include "stdutil/stdutil.h"
 
+#include "version.h"
+
 // Glib
 #include <glib.h>
 

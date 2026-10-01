@@ -12,4 +12,6 @@
 #define NG_BUILD_DATE          __DATE__
 #define NG_BUILD_TIME          __TIME__
 
+void version_print(void);
+
 #endif

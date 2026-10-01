@@ -1,11 +1,15 @@
+#
+# Makefile.simple
+# ngspread
+#
+
+NG_VERSION    := $(shell git describe --tags --always 2>/dev/null || echo unknown)
+NG_GIT_HASH   := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+NG_BUILD_DATE := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+
 CC      = gcc
 
 CFLAGS  = -O2 -Wall -Wextra `pkg-config glib-2.0 --cflags` -std=c99 -fcommon
-
-CFLAGS += \
-    -DNG_VERSION=\"$(VERSION)\" \
-    -DNG_GIT_HASH=\"$(GIT_HASH)\" \
-    -DNG_BUILD_DATE=\"$(BUILD_DATE)\"
 
 
 CPPFLAGS = -D_GNU_SOURCE -D_DEFAULT_SOURCE \
@@ -14,6 +18,11 @@ CPPFLAGS = -D_GNU_SOURCE -D_DEFAULT_SOURCE \
 	 -Ilibspread \
 	 -Ilibspread-util/include \
 	 -Istdutil/src
+
+CPPFLAGS += -D_GNU_SOURCE -D_DEFAULT_SOURCE
+CPPFLAGS += -DNG_VERSION=\"$(NG_VERSION)\"
+CPPFLAGS += -DNG_GIT_HASH=\"$(NG_GIT_HASH)\"
+CPPFLAGS += -DNG_BUILD_DATE=\"$(NG_BUILD_DATE)\"
 
 LDFLAGS =
 
@@ -58,7 +67,8 @@ STDUTIL_OBJS = \
     stdutil/src/stdarr.o \
     stdutil/src/stddll.o \
     stdutil/src/stdtime.o \
-    stdutil/src/stdcarr.o
+    stdutil/src/stdcarr.o \
+    stdutil/src/stdthread.o
     
 
 LIBSPREAD_OBJS = \
