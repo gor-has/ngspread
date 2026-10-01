@@ -14,6 +14,16 @@
 *.so.*
 *.dylib
 
+stdutil/src/stdarr.o
+stdutil/src/stdcarr.o
+stdutil/src/stddll.o
+stdutil/src/stderror.o
+stdutil/src/stdhash.o
+stdutil/src/stdit.o
+stdutil/src/stdskl.o
+stdutil/src/stdtime.o
+stdutil/src/stdutil.o
+
 #
 # Executables
 #

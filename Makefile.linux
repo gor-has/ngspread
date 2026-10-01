@@ -17,8 +17,9 @@ SPUSER          = spuser
 SPUSER_SRC      = ./spuser
 SPUSER_DST      = $(BINDIR)/$(SPUSER)
 
-CONF_SRC        = ./spread.conf
-CONF_DST        = $(SYSCONFDIR)/spread.conf
+CONF_SRC  = spread.conf.example
+CONF_DIR  = /etc/ngspread
+CONF_FILE = $(CONF_DIR)/spread.conf
 
 SERVICE         = ngspread.service
 SERVICE_DST     = $(SYSTEMD_DIR)/$(SERVICE)
@@ -77,16 +78,18 @@ install-spuser:
 	install -d -m 0755 $(BINDIR)
 	install -m 0755 $(SPUSER_SRC) $(SPUSER_DST)
 
+
 install-conf:
-	install -d -m 0755 $(SYSCONFDIR)
-	@if test ! -f $(CONF_SRC); then \
-	    echo "ERROR: $(CONF_SRC) not found"; \
-	    exit 1; \
+	install -d -m 0755 $(CONF_DIR)
+	@if [ ! -f "$(CONF_SRC)" ]; then \
+		echo "ERROR: $(CONF_SRC) not found"; \
+		exit 1; \
 	fi
-	@if test ! -f $(CONF_DST); then \
-	    install -m 0644 $(CONF_SRC) $(CONF_DST); \
+	@if [ ! -f "$(CONF_FILE)" ]; then \
+		install -m 0644 "$(CONF_SRC)" "$(CONF_FILE)"; \
+		echo "Installed $(CONF_FILE)"; \
 	else \
-	    echo "$(CONF_DST) already exists -- not overwritten"; \
+		echo "$(CONF_FILE) already exists; not overwriting"; \
 	fi
 
 install-service:
