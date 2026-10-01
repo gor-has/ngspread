@@ -17,7 +17,8 @@ INSTALL     ?= install
 PKG_CONFIG  ?= pkg-config
 
 CFLAGS      ?= -O2 -g
-CFLAGS      += -Wall -Wextra -fPIC
+# CFLAGS      += -Wall -Wextra -fPIC
+CFLAGS      += -std=c99 -Wall -Wextra -fPIC
 
 
 # CPPFLAGS    += -Iinclude -Ilibspread -Ilibspread-util/src -Istdutil/src
@@ -30,6 +31,8 @@ CPPFLAGS := \
 	-Istdutil/src \
 	-Idaemon \
 	$(shell pkg-config --cflags glib-2.0)
+
+CPPFLAGS += -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE
 
 
 
