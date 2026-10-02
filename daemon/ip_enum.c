@@ -37,23 +37,23 @@
 
 #include <string.h>
 
-#ifndef ARCH_PC_WIN95
+
 #  include <sys/types.h>
 #  include <sys/socket.h>
 #  include <net/if.h>
+
 #  if defined(HAVE_IFADDRS_H)
-#    include <ifaddrs.h>     /* NOTE: this has to come after <net/if.h> on some systems! */
+#  include <ifaddrs.h>     // NOTE: this has to come after <net/if.h> on some systems!
 #  endif
+
 #  include <netdb.h>
 #  include <sys/ioctl.h>
 #  include <netinet/in.h>
+
 #  ifdef sun
-#    include <sys/sockio.h>  /* for SIOCGIFCONF */
+#  include <sys/sockio.h>  // for SIOCGIFCONF 
 #  endif
-#else
-#  include <winsock2.h>
-#  include <iphlpapi.h>
-#endif
+
 
 #include "spu_alarm.h"
 #include "spu_addr.h"
@@ -62,12 +62,8 @@
 #define MAX_IF 1024     /* max interfaces to look up */
 #define MIN_IF 16       /* must be able to look up at least this many */
 
-#ifdef ARCH_PC_WIN95
-typedef INTERFACE_INFO If_info;
-#else
 typedef struct ifreq If_info;
 #  define closesocket(s) close(s)
-#endif
 
 #if !defined(_SIZEOF_ADDR_IFREQ)
 #  if defined(HAVE_SA_LEN_IN_SOCKADDR)
@@ -150,9 +146,9 @@ static void ip_enum_hostname(ip_array *array)
     freeaddrinfo(rslt);
 }
 
-/********************************************************************************
- ********************************************************************************/
-
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static void ip_enum_socket(ip_array *array, int family)
 {
   size_t   bufferSize = sizeof(If_info) * MAX_IF;
@@ -175,50 +171,7 @@ static void ip_enum_socket(ip_array *array, int family)
     goto FAIL_BUFFER;
   }
   
-#ifdef ARCH_PC_WIN95
-  {
-    INTERFACE_INFO *ifr = (INTERFACE_INFO*) buffer;
-    DWORD           n   = 0;
-
-    /* TODO: probably want to use GetAdaptersAddresses instead as a parallel to getifaddrs (i.e. - move to ip_enum_getifaddrs) */
-      
-    if (WSAIoctl(sock, SIO_GET_INTERFACE_LIST, 0, 0, buffer, bufferSize, &n, 0, 0) == SOCKET_ERROR)
-    {
-      Alarmp(SPLOG_ERROR, CONF_SYS, SPLOC ":ip_enum_socket: WSAIoctl(SIO_GET_INTERFACE_LIST) failed: %d %s\n", sock_errno, sock_strerrno(sock_errno));
-      goto FAIL_SOCK;
-    }
-    
-    for (n /= sizeof(INTERFACE_INFO); n > 0; ++ifr, --n)
-    {
-      if (ifr->iiAddress.Address.sa_family != AF_INET && ifr->iiAddress.Address.sa_family != AF_INET6)
-        continue;
-
-      /* NOTE: we do this manually instead because windoze has two
-       * kinds of sockaddr_in6's, sockaddr_in6 and sockaddr_in6_old,
-       * and this might return the old kind
-      
-      if (spu_addr_from_sockaddr_known(&addr, &ifr->iiAddress.Address))
-        Alarmp(SPLOG_FATAL, CONF_SYS, SPLOC ":ip_enum_socket: BUG! spu_addr_from_sockaddr_known failed?!\n");
-      */
-      
-      memset(&addr, 0, sizeof(addr));
-
-      switch (ifr->iiAddress.Address.sa_family)
-      {
-      case AF_INET:
-        memcpy(&addr, &ifr->iiAddress.AddressIn,  sizeof(ifr->iiAddress.AddressIn));
-        break;
-        
-      case AF_INET6:
-        memcpy(&addr, &ifr->iiAddress.AddressIn6, sizeof(ifr->iiAddress.AddressIn6));
-        break;
-      }
-
-      add_ip(array, &addr);
-    }
-  }
-#else
-  {
+  // Removed Win95
     struct ifconf ifc;
     struct ifreq *ifp;
 
@@ -257,8 +210,8 @@ static void ip_enum_socket(ip_array *array, int family)
 
       add_ip(array, &addr);
     }
-  }
-#endif
+  
+
 
 FAIL_SOCK:
   closesocket(sock);

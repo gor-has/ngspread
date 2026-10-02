@@ -41,13 +41,6 @@
 #include "spu_alarm.h"
 #include "spu_data_link.h"
 
-#ifdef	ARCH_PC_WIN95
-
-#include	<winsock2.h>
-
-WSADATA		WSAData;
-
-#endif	/* ARCH_PC_WIN95 */
 
 static	char	IP[16];
 static	int16u	Port;
@@ -74,14 +67,6 @@ int main( int argc, char *argv[] )
 
 	Alarm_set_types( NONE ); 
 
-#ifdef	ARCH_PC_WIN95
-
-	ret = WSAStartup( MAKEWORD(2,0), &WSAData );
-	if( ret != 0 )
-		Alarm( EXIT, "r: winsock initialization error %d\n", ret );
-
-#endif	/* ARCH_PC_WIN95 */
-
 	chan = DL_init_channel( RECV_CHANNEL, Port, Address, Interface_addr );
 
 	scat.num_elements = 1;
@@ -96,7 +81,7 @@ int main( int argc, char *argv[] )
 	corrupt = 0;
 	total_missed = 0;
 
-printf("Ready to receive on port %hu\n", Port );
+    printf("Ready to receive on port %hu\n", Port );
 
 	for(i=0; ; i++ )
 	{

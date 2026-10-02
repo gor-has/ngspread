@@ -37,13 +37,6 @@
 #include <stdio.h>
 #include "arch.h"
 
-/* undef redefined variables under windows */
-#ifdef ARCH_PC_WIN95
-#undef EINTR
-#undef EAGAIN
-#undef EWOULDBLOCK
-#undef EINPROGRESS
-#endif
 #include <errno.h>
 
 #include <string.h>

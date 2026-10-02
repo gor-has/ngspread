@@ -53,19 +53,11 @@
 // Glib
 #include <glib.h>
 
-
-#ifndef ARCH_PC_WIN95
 #  include <grp.h>
 #  include <pwd.h>
 #  include <unistd.h>
 #  include <sys/types.h>
 #  include <sys/stat.h>
-#endif
-
-#ifdef	ARCH_PC_WIN95
-#  include	<winsock2.h>
-WSADATA		WSAData;
-#endif	/* ARCH_PC_WIN95 */
 
 static	char		*My_name = NULL;
 static	char		My_name_buf[80];
@@ -314,50 +306,53 @@ int main(int argc, char *argv[])
 	  set_rand( (int) stdhcode_oaat( &t, sizeof( t ) ) ^ (int) stdhcode_oaat( &My.id, sizeof( My.id ) ) );
 	}
 
-#ifndef	ARCH_PC_WIN95
-        /* Verify that unix socket dir is safe if runing as root user */
-        if (geteuid() == (uid_t) 0) {
-            struct stat usock_stat;
-            Alarmp( SPLOG_INFO, SECURITY, "Spread is running as root so check file locations\n");
-            if (stat( SP_UNIX_SOCKET, &usock_stat)) {
-                Alarmp( SPLOG_FATAL, SECURITY, "Spread unable to stat the unix domain socket dir (%s). Please verify the selected directory and restart the daemon\n", SP_UNIX_SOCKET );
-                exit( 0 );
-            }
 
-            if ( (usock_stat.st_mode & S_IWOTH) || !(usock_stat.st_uid == (uid_t) 0) )
-                Alarmp( SPLOG_WARNING, PRINT, "Spread: SECURITY RISK! running as root, but unix domain socket is not in a root-only writable directory. May risk denial of service or malicious deletion of unexpected file in directory: %s\n", SP_UNIX_SOCKET );
+    /* Verify that unix socket dir is safe if runing as root user */
+    if (geteuid() == (uid_t) 0) {
+       struct stat usock_stat;
+       Alarmp( SPLOG_INFO, SECURITY, "Spread is running as root so check file locations\n");
+       if (stat( SP_UNIX_SOCKET, &usock_stat)) {
+          Alarmp( SPLOG_FATAL, SECURITY, "Spread unable to stat the unix domain socket dir (%s). Please verify the selected directory and restart the daemon\n", SP_UNIX_SOCKET );
+          exit( 0 );
+       }
+       
+       if ( (usock_stat.st_mode & S_IWOTH) || !(usock_stat.st_uid == (uid_t) 0) )
+          Alarmp( SPLOG_WARNING, PRINT, "Spread: SECURITY RISK! running as root, but unix domain socket is not in a root-only writable directory. May risk denial of service or malicious deletion of unexpected file in directory: %s\n", SP_UNIX_SOCKET );
 	}
-#endif
+    
 
 	Sess_init();
 
 	Stat_init();
 
-#ifndef	ARCH_PC_WIN95
 
-	/* Yupp, we're paranoid */
-
-	if (geteuid() != (uid_t) 0) {
+	// Yupp, we're paranoid 
+	if (geteuid() != (uid_t) 0)
+    {
             Alarmp( SPLOG_WARNING, SECURITY, "Spread: not running as root, won't chroot\n" );
 	}
 	else if ( (grp = getgrnam(Conf_get_group())) == NULL
-                  || (pwd = getpwnam(Conf_get_user())) == NULL ) {
+                  || (pwd = getpwnam(Conf_get_user())) == NULL )
+    {
             Invalid_privilege_decrease(Conf_get_user(), Conf_get_group());
 	}
 	else if (chdir(Conf_get_runtime_dir()) < 0
-                  || chroot(Conf_get_runtime_dir()) < 0 ) {
+                  || chroot(Conf_get_runtime_dir()) < 0 )
+    {
             Alarmp( SPLOG_FATAL, SECURITY, "Spread: FAILED chroot to '%s'\n",
                    Conf_get_runtime_dir() );
 	}
 	else if ( setgroups(1, &grp->gr_gid) < 0
                   || setgid(grp->gr_gid) < 0
-                  || setuid(pwd->pw_uid) < 0) {
+                  || setuid(pwd->pw_uid) < 0)
+    {
             Invalid_privilege_decrease(Conf_get_user(), Conf_get_group());
-	} else {
+	}
+    else
+    {
             Alarmp( SPLOG_INFO, SECURITY, "Spread: setugid and chroot successeful\n" );
 	}
 
-#endif	/* ARCH_PC_WIN95 */
 
 	if( Log ) Log_init();
 

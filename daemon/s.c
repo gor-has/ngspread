@@ -42,14 +42,6 @@
 #include "spu_events.h"
 #include "spu_data_link.h"
 
-#ifdef	ARCH_PC_WIN95
-
-#include	<winsock2.h>
-
-WSADATA		WSAData;
-
-#endif	/* ARCH_PC_WIN95 */
-
 static  int     Num_bytes;
 static  int     Num_packets;
 static	char	IP[16];
@@ -76,14 +68,6 @@ int main( int argc, char *argv[] )
 	Usage( argc, argv );
 
 	Alarm_set_types( NONE ); 
-
-#ifdef	ARCH_PC_WIN95
-
-	ret = WSAStartup( MAKEWORD(2,0), &WSAData );
-	if( ret != 0 )
-		Alarm( EXIT, "s: winsock initialization error %d\n", ret );
-
-#endif	/* ARCH_PC_WIN95 */
 
 	chan = DL_init_channel( SEND_CHANNEL, Port, 0, 0 );
 

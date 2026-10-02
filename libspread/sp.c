@@ -38,8 +38,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifndef	ARCH_PC_WIN95
-
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -60,15 +58,6 @@
 #  ifdef HAVE_POLL
 #    include <poll.h>
 #  endif
-
-#else	/* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-#define ioctl   ioctlsocket
-
-WSADATA	WSAData;
-
-#endif	/* ARCH_PC_WIN95 */
 
 #include "mutex.h"
 #include "spu_events.h"
@@ -94,14 +83,11 @@ typedef struct dummy_membership_info {
 
 #include "sp_func.h"
 
-#ifndef ARCH_PC_WIN95
+
 #  define GAI_STRERROR(e) gai_strerror(e)
+
 #  ifndef INVALID_SOCKET
 #    define INVALID_SOCKET (-1)
-#  elif INVALID_SOCKET != -1
-#  endif
-#else
-#  define GAI_STRERROR(e) sock_strerror(e)  /* NOTE: gai_strerror is not thread safe on win32 */
 #endif
 
 enum sp_sess_state {
@@ -129,12 +115,10 @@ struct auth_method_info {
 /* length of spread_name connect field is limited to 5 digit port # + '@' + hostname */
 #define SPREAD_MAXCONNECT_NAMELEN       (MAXHOSTNAMELEN + 6)
 
-/* default spread connection method depends on whether unix sockets are available */
-#ifndef ARCH_PC_WIN95
+
+// default spread connection method depends on whether unix sockets are available 
 #  define DEFAULT_SPREAD_CONNECTION      QQ(DEFAULT_SPREAD_PORT)
-#else
-#  define DEFAULT_SPREAD_CONNECTION      QQ(DEFAULT_SPREAD_PORT) "@localhost"
-#endif	/* ARCH_PC_WIN95 */
+
 
 static  int     sp_null_authenticate(int, void *);
 static  struct auth_method_info Auth_Methods[MAX_AUTH_METHODS] = { {"NULL", sp_null_authenticate, NULL} };
@@ -633,42 +617,38 @@ static  void    sp_atfork_child(void)
 #endif  /* HAVE_PTHREAD_ATFORK */
 #endif /* _REENTRANT */
 
-static  void    sp_initialize(void)
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static  void  sp_initialize(void)
 {
-        int ses;
-
+   int ses;
+   
 #ifdef ENABLEDEBUG
-        Alarm_set_types(SESSION | DEBUG);
-        Alarm_set_priority(SPLOG_DEBUG);
+   Alarm_set_types(SESSION | DEBUG);
+   Alarm_set_priority(SPLOG_DEBUG);
 #endif
-
-	Mutex_init( &Struct_mutex );
-	for( ses=0; ses < MAX_LIB_SESSIONS; ++ses )
-	{
-	        Mutex_init( &Sessions[ses].recv_mutex );
-		Mutex_init( &Sessions[ses].send_mutex );
-		Sessions[ses].mbox  = -1;
-		Sessions[ses].state = SESS_UNUSED;
-	}
-
-	Mutex_atfork( sp_atfork_prepare, sp_atfork_parent, sp_atfork_child );
-
-#ifndef ARCH_PC_WIN95
-	signal( SIGPIPE, SIG_IGN );
-#else	/* ARCH_PC_WIN95 */
-	{
-	        int ret = WSAStartup( MAKEWORD(2,0), &WSAData );
-
-		if( ret != 0 ) Alarm( EXIT, "sp_initialize: winsock initialization error %d\n", ret );
-	}
-#endif	/* ARCH_PC_WIN95 */
-
-        return;
+   
+   Mutex_init( &Struct_mutex );
+   for( ses=0; ses < MAX_LIB_SESSIONS; ++ses )
+   {
+      Mutex_init( &Sessions[ses].recv_mutex );
+      Mutex_init( &Sessions[ses].send_mutex );
+      Sessions[ses].mbox  = -1;
+      Sessions[ses].state = SESS_UNUSED;
+   }
+   
+   Mutex_atfork( sp_atfork_prepare, sp_atfork_parent, sp_atfork_child );
+   
+   signal( SIGPIPE, SIG_IGN );
+   
+   return;
 }
 
-/* Increase socket buffer size to 200Kb if possible.
- * Used in SP_connect family when connection is established.
- */
+//----------------------------------------------------------------------
+// Increase socket buffer size to 200Kb if possible.
+// Used in SP_connect family when connection is established.
+//----------------------------------------------------------------------
 static void set_large_socket_buffers(int s)
 {
     int i, on, ret;
@@ -813,51 +793,52 @@ int	SP_connect_timeout( const char *spread_name, const char *private_name,
     return SP_connect_timeout_low( spread_name, private_name, priority, group_membership, mbox, private_group, t );
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static int SP_connect_timeout_low( const char *spread_name, const char *private_name,
                                    int priority, int group_membership, mailbox *mbox,
                                    char *private_group, sp_time *abs_time_out )
 {
-	int16u			port;
-	char			host_name[SPREAD_MAXCONNECT_NAMELEN + 1];
-	char                    conn[ 5 + MAX_PRIVATE_NAME ];
-        char                    auth_list_len;
-        char                    auth_list[MAX_AUTH_NAME * MAX_AUTH_METHODS];
-        char                    auth_choice[MAX_AUTH_NAME * MAX_AUTH_METHODS];
-        bool                    failed;
-        int                     num_auth_methods;
-        struct auth_method_info auth_methods[MAX_AUTH_METHODS];
-	int			s;
-	int                     ses;
-	int                     base_ses;
-	int			ret, i;
-        int                     len;
-	int			sp_v1, sp_v2, sp_v3;
-	int32			on;
-        int                     tmp;
+   int16u			port;
+   char			host_name[SPREAD_MAXCONNECT_NAMELEN + 1];
+   char                    conn[ 5 + MAX_PRIVATE_NAME ];
+   char                    auth_list_len;
+   char                    auth_list[MAX_AUTH_NAME * MAX_AUTH_METHODS];
+   char                    auth_choice[MAX_AUTH_NAME * MAX_AUTH_METHODS];
+   bool                    failed;
+   int                     num_auth_methods;
+   struct auth_method_info auth_methods[MAX_AUTH_METHODS];
+   int			s;
+   int                     ses;
+   int                     base_ses;
+   int			ret, i;
+   int                     len;
+   int			sp_v1, sp_v2, sp_v3;
+   int32			on;
+   int                     tmp;
+   
+   spu_addr                addr      = { 0 };
+   struct sockaddr        *sock_addr;
+   socklen_t               sock_len;
+   
+   struct addrinfo         hint = { 0 };
+   struct addrinfo        *rslt = NULL;
+   struct addrinfo        *curr;
+   
+   struct	sockaddr_un	unix_addr;
+   
+   Once_execute( &Init_once, sp_initialize );
 
-        spu_addr                addr      = { 0 };
-	struct sockaddr        *sock_addr;
-	socklen_t               sock_len;
+   // 
+   // There are 4 options for a spread daemon name:
+   //      NULL
+   //      ""
+   // 	<port_num>
+   //	<port_num>@<host_name>
+   //
 
-        struct addrinfo         hint = { 0 };
-        struct addrinfo        *rslt = NULL;
-        struct addrinfo        *curr;
-
-#ifndef	ARCH_PC_WIN95
-	struct	sockaddr_un	unix_addr;
-#endif	/* ARCH_PC_WIN95 */
-
-        Once_execute( &Init_once, sp_initialize );
-
-	/* 
-	 * There are 4 options for a spread daemon name:
-	 *      NULL
-	 *      ""
-	 * 	<port_num>
-	 *	<port_num>@<host_name>
-	 */
-
-	/* options NULL and "" */
+   // options NULL and ""
 	if( spread_name == NULL || !strcmp( spread_name, "" ) )
           spread_name = DEFAULT_SPREAD_CONNECTION;
 
@@ -869,7 +850,6 @@ static int SP_connect_timeout_low( const char *spread_name, const char *private_
 	{
 	case 1:  /* option <port_num> */
 
-#ifndef	ARCH_PC_WIN95
 		memset( &unix_addr, 0, sizeof( unix_addr ) );
 		unix_addr.sun_family = AF_UNIX;
 		sprintf( unix_addr.sun_path, "%s/%hu", SP_UNIX_SOCKET, port );
@@ -884,11 +864,6 @@ static int SP_connect_timeout_low( const char *spread_name, const char *private_
 		}
 
 		break;
-
-#else	/* ARCH_PC_WIN95 */
-		/* NOTE: win32: intentional fall through this case to option <port_num>@<host_name> where <host_name> = localhost */
-		strcpy( host_name, "@localhost" );
-#endif	/* ARCH_PC_WIN95 */
 
 	case 2:  /* option <port_num>@<host_name> */
 
