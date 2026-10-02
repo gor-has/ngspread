@@ -115,13 +115,20 @@ int scatp_is_not_legal(const scatp *pos)
 	    pos->buff_ind < 0 || pos->buff_ind >= (int) scat->elements[pos->elem_ind].len)));
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int scatp_is_end(const scatp *pos) 
 {
   if (pos->scat->num_elements > MAX_CLIENT_SCATTER_ELEMENTS)
+  {
     return ILLEGAL_MESSAGE;
+  }
+  
+  return pos->elem_ind == (long) pos->scat->num_elements && pos->buff_ind == 0;
 
-  return pos->elem_ind == pos->scat->num_elements && pos->buff_ind == 0;
 }
+
 
 int scatp_equals(const scatp *pos1, const scatp *pos2) 
 {
@@ -167,15 +174,16 @@ long scatp_comp(const scatp *pos1, const scatp *pos2)
   return ret;
 }
 
-/* This fcn moves a scat_pos forward num_bytes bytes in a scatter. On
-   success, this fcn returns num_bytes and pos is modified
-   appropriately. Otherwise, if the jump was so big that it would have
-   jumped off the end of the scatter, the number of bytes that _could_
-   have been successfully jumped is returned, and pos is unchanged. 
-*/
-
+//----------------------------------------------------------------------
+//  This fcn moves a scat_pos forward num_bytes bytes in a scatter. On
+//  success, this fcn returns num_bytes and pos is modified
+//  appropriately. Otherwise, if the jump was so big that it would have
+//  jumped off the end of the scatter, the number of bytes that _could_
+//  have been successfully jumped is returned, and pos is unchanged. 
+//----------------------------------------------------------------------
 long scatp_jforward(scatp *pos, long num_bytes) 
-{ 
+{
+   
   long elem_ind, skip_bytes, tmp; 
   const scatter *scat = pos->scat;
 
@@ -197,15 +205,16 @@ long scatp_jforward(scatp *pos, long num_bytes)
   elem_ind   = pos->elem_ind + 1;
   skip_bytes = num_bytes - tmp;   /* how many bytes left to skip */
   
-  for (; elem_ind < (int) scat->num_elements; ++elem_ind) {
+  for (; elem_ind < (long) scat->num_elements; ++elem_ind) {
     /* use < 0 because it jumps over any zero length buffers */
     if ((skip_bytes -= scat->elements[elem_ind].len) < 0) {
       skip_bytes += scat->elements[elem_ind].len; /* restore to positive */
       break;
     }
   }
-  /* jump forward jumped past end of scatter */
-  if (elem_ind == scat->num_elements && skip_bytes != 0) 
+  
+  // jump forward jumped past end of scatter
+  if (elem_ind == (long) scat->num_elements && skip_bytes != 0) 
     return num_bytes - skip_bytes;
 
   pos->elem_ind = elem_ind;
@@ -320,16 +329,22 @@ long scatp_cpy2(const scatp *dst, char *src, long num_bytes)
   return scatp_cpy0(dst, &sscatp, num_bytes);
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 long scatp_adv_cpy0(scatp *dst, scatp *src, long num_bytes, int adv_dst, int adv_src) 
 {
+   
   scatter *dscat = dst->scat, *sscat = src->scat;
   long dst_elem, src_elem, bytes_left, copy_size, dst_left, src_left;
   char *dst_curr, *dst_end, *src_curr, *src_end;
 
-  if (scatp_is_not_legal(dst) || scatp_is_not_legal(src)) {
-    printf("illegal scatp! dst: %d src: %d\n", scatp_is_not_legal(dst), scatp_is_not_legal(src));
-    return ILLEGAL_MESSAGE;
+  if (scatp_is_not_legal(dst) || scatp_is_not_legal(src))
+  {
+     printf("illegal scatp! dst: %d src: %d\n", scatp_is_not_legal(dst), scatp_is_not_legal(src));
+     return ILLEGAL_MESSAGE;
   }
+  
   if (num_bytes < 0)
     return ILLEGAL_SERVICE;
 
@@ -346,7 +361,7 @@ long scatp_adv_cpy0(scatp *dst, scatp *src, long num_bytes, int adv_dst, int adv
 
   bytes_left = num_bytes;
 
-  while (dst_elem < (int) dscat->num_elements && src_elem < (int) sscat->num_elements && bytes_left) {
+  while (dst_elem < (int) dscat->num_elements && src_elem < (long) sscat->num_elements && bytes_left) {
     dst_left  = dst_end - dst_curr;
     src_left  = src_end - src_curr;
     copy_size = (dst_left < src_left) ? dst_left : src_left;
@@ -379,27 +394,46 @@ long scatp_adv_cpy0(scatp *dst, scatp *src, long num_bytes, int adv_dst, int adv
       }
     }
   }
-  if (bytes_left != 0) /* couldn't do the entire copy */
+  
+  if (bytes_left != 0) // couldn't do the entire copy 
+  {
     return num_bytes - bytes_left;
-
-  /* success! now, update the scatp's if requested to */
-  if (adv_dst) {
-    dst->elem_ind = dst_elem;
-    if (dst_elem != dscat->num_elements)
-      dst->buff_ind = dst_curr - dscat->elements[dst_elem].buf;
-    else
-      dst->buff_ind = 0;
   }
-  if (adv_src) {
-    src->elem_ind = src_elem;
-    if (src_elem != sscat->num_elements)
-      src->buff_ind = src_curr - sscat->elements[src_elem].buf;
+
+  // success! now, update the scatp's if requested to
+  if (adv_dst)
+  {
+    dst->elem_ind = dst_elem;
+    
+    if (dst_elem != (long) dscat->num_elements)
+    {
+      dst->buff_ind = dst_curr - dscat->elements[dst_elem].buf;
+    }
     else
-      src->buff_ind = 0;
+    {
+      dst->buff_ind = 0;
+    }
+  }
+  
+  if (adv_src)
+  {
+     src->elem_ind = src_elem;
+     
+     if (src_elem != (long) sscat->num_elements)
+     {
+        src->buff_ind = src_curr - sscat->elements[src_elem].buf;
+     }
+     else
+     {
+        src->buff_ind = 0;
+     }
   }
   return num_bytes;
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 long scatp_adv_cpy1(char **dst, scatp *src, long num_bytes, int adv_dst, int adv_src) 
 {
   scatter dscat;

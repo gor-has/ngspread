@@ -325,46 +325,66 @@ const char *spu_af_str(int family)
 
 int spu_addr_ip_cmp(const spu_addr *l, const spu_addr *r, int include_port)
 {
+   
   int ret;
 
   if ((l->addr.sa_family != AF_INET && l->addr.sa_family != AF_INET6) ||
       (r->addr.sa_family != AF_INET && r->addr.sa_family != AF_INET6))
+  {
+     Alarmp(SPLOG_FATAL, NONE,
+            "spu_addr_ip_cmp: unrecognized address families %d %d; "
+            "AF_INET = %d, AF_INET6 = %d\n",
+            l->addr.sa_family, r->addr.sa_family,
+            AF_INET, AF_INET6);
+     
+     return 0;
+  }
+
+  /*
+  if ((l->addr.sa_family != AF_INET && l->addr.sa_family != AF_INET6) ||
+      (r->addr.sa_family != AF_INET && r->addr.sa_family != AF_INET6))
     Alarmp(SPLOG_FATAL, NONE, "spu_addr_ip_cmp: unrecognized address families %d %d; AF_INET = %d, AF_INET6 = %d\n",
            l->addr.sa_family, r->addr.sa_family, AF_INET, AF_INET6);
-
+  */
+  
   if (l->addr.sa_family == r->addr.sa_family)
   {
-    switch(l->addr.sa_family)
-    {
-    case AF_INET:
-      if ((ret = memcmp(&l->ipv4.sin_addr.s_addr, &r->ipv4.sin_addr.s_addr, 4)) == 0 && include_port)
-      {
-        if (ntohs(l->ipv4.sin_port) < ntohs(r->ipv4.sin_port))
-          ret = -1;
-
-        else if (l->ipv4.sin_port != r->ipv4.sin_port)
-          ret = 1;
-      }      
-      break;
-
-    case AF_INET6:
-      if ((ret = memcmp(l->ipv6.sin6_addr.s6_addr, r->ipv6.sin6_addr.s6_addr, 16)) == 0 && include_port)
-      {
-        if (ntohs(l->ipv6.sin6_port) < ntohs(r->ipv6.sin6_port))
-          ret = -1;
-
-        else if (l->ipv6.sin6_port != r->ipv6.sin6_port)
-          ret = 1;
-      }
-      break;
-    }
+     switch(l->addr.sa_family)
+     {
+        case AF_INET:
+           if ((ret = memcmp(&l->ipv4.sin_addr.s_addr, &r->ipv4.sin_addr.s_addr, 4)) == 0 && include_port)
+           {
+              if (ntohs(l->ipv4.sin_port) < ntohs(r->ipv4.sin_port))
+                 ret = -1;
+              
+              else if (l->ipv4.sin_port != r->ipv4.sin_port)
+                 ret = 1;
+           }      
+           break;
+           
+        case AF_INET6:
+           if ((ret = memcmp(l->ipv6.sin6_addr.s6_addr, r->ipv6.sin6_addr.s6_addr, 16)) == 0 && include_port)
+           {
+              if (ntohs(l->ipv6.sin6_port) < ntohs(r->ipv6.sin6_port))
+                 ret = -1;
+              
+              else if (l->ipv6.sin6_port != r->ipv6.sin6_port)
+                 ret = 1;
+           }
+           break;
+        default:
+           Alarmp(SPLOG_FATAL, NONE,
+                  "spu_addr_ip_cmp: unexpected address family %d\n",
+                  l->addr.sa_family);
+           return 0;
+     }
   }
   else if (l->addr.sa_family == AF_INET)
-    ret = -1;
-
+     ret = -1;
+  
   else
-    ret = 1;
-
+     ret = 1;
+  
   return ret;
 }
 

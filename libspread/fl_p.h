@@ -193,6 +193,7 @@ typedef struct {
    The struct member flok_senders contains by value (ie - alloc'ed by
    flok_senders) members' names who have flok'ed to this view_id.  
 */
+
 typedef struct {
   view     *memb_info;
   int      memb_mess_recvd;
@@ -252,8 +253,8 @@ typedef struct {
   mailbox mbox;           
   int     priority;
   int     group_memb;
-  char    daemon[MAX_GROUP_NAME];
-  char    user[MAX_GROUP_NAME];
+   //char    daemon[MAX_GROUP_NAME];   // Not used
+   //char    user[MAX_GROUP_NAME];     // Not used
   char    private[MAX_GROUP_NAME];
 
   /* acquiring conn_lock allows a thread to examine and modify everything below here */

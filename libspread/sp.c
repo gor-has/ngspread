@@ -731,7 +731,9 @@ int     SP_set_auth_method( const char *auth_name, int (*auth_function) (int, vo
         }
         Mutex_lock( &Struct_mutex );
 
-        strncpy(Auth_Methods[0].name, auth_name, MAX_AUTH_NAME);
+        // strncpy(Auth_Methods[0].name, auth_name, MAX_AUTH_NAME);
+        strcpy(Auth_Methods[0].name, auth_name);
+
         Auth_Methods[0].authenticate = auth_function;
         Auth_Methods[0].auth_data = auth_data;
         Num_Reg_Auth_Methods = 1;
@@ -1712,8 +1714,12 @@ static	char		dummy_buf[10240];
                         else
                                 *endian_mismatch = 0;
 
-                        /* Return sender field to caller */
-                        strncpy( sender, head_ptr->private_group_name, MAX_GROUP_NAME );
+                        // Return sender field to caller
+                        // GCC says it may copy 32 bytes from a 43-byte source into a 32-byte destination, which can leave the destination unterminated.
+                        // This is a fix...   
+                        strncpy( sender, head_ptr->private_group_name, MAX_GROUP_NAME -1 );
+                        sender[MAX_GROUP_NAME - 1] = '\0';
+                        
 
 			Mutex_unlock( &Sessions[ses].recv_mutex );
                         if (*num_groups)
@@ -1740,7 +1746,9 @@ static	char		dummy_buf[10240];
 		*endian_mismatch = 0;
 	}
 
-	strncpy( sender, head_ptr->private_group_name, MAX_GROUP_NAME );
+    // GCC warning for copy 43 byte to 32 byte string - fix for this
+	strncpy( sender, head_ptr->private_group_name, MAX_GROUP_NAME -1 );
+    sender[MAX_GROUP_NAME - 1] = '\0';
         
         /* if a reject message read the extra old_type field first, and merge with head_ptr->type */
         if ( Is_reject_mess( head_ptr->type ) )
@@ -1817,7 +1825,11 @@ static	char		dummy_buf[10240];
 		     remain > 0; remain -= ret ) 
 		{
 			to_read = remain;
-			if( to_read > sizeof( dummy_buf ) ) to_read = sizeof( dummy_buf );
+            
+			if( to_read > (int) sizeof( dummy_buf ) )
+                to_read = (int) sizeof( dummy_buf );
+
+            
 			while(((ret = recv( mbox, dummy_buf, to_read, 0 )) == -1 ) && ((sock_errno == EINTR) || (sock_errno == EAGAIN) || (sock_errno == EWOULDBLOCK)) )
                                 ;
 			if( ret <=0 )
@@ -1953,16 +1965,23 @@ static	char		dummy_buf[10240];
 		for( bytes_index = 0, scat = 0 ; bytes_index < flip_size ; bytes_index += bytes_to_copy )
 		{
 			bytes_to_copy = flip_size - bytes_index;
+            
 			if( bytes_to_copy > (int) scat_mess->elements[scat].len )
-				bytes_to_copy = scat_mess->elements[scat].len;
+            {
+               bytes_to_copy = (int) scat_mess->elements[scat].len;
+            }
+            
 			memcpy( &groups_buf[bytes_index], scat_mess->elements[scat].buf, bytes_to_copy );
-                        if( bytes_to_copy == scat_mess->elements[scat].len )
-                        {
-                                scat_index = 0;
-                                ++scat;
-                        } else {
-                                scat_index = bytes_to_copy;
-                        }
+            
+            if( bytes_to_copy == (int) scat_mess->elements[scat].len )
+            {
+               scat_index = 0;
+               ++scat;
+            }
+            else
+            {
+               scat_index = bytes_to_copy;
+            }
 		}
                 total_index  = flip_size;
                 target_index = total_index;
@@ -2007,26 +2026,38 @@ static	char		dummy_buf[10240];
                         first_scat       = scat;
 
                         flip_size = sizeof( int32u );
+                        
                         if( flip_size + total_index > max_mess_len ) flip_size = max_mess_len - total_index;
+                        
                         for( bytes_index = 0 ; bytes_index < flip_size ; bytes_index += bytes_to_copy )
                         {
                                 bytes_to_copy = flip_size - bytes_index;
+                                
                                 if( bytes_to_copy > (int) scat_mess->elements[scat].len - scat_index )
-                                        bytes_to_copy = scat_mess->elements[scat].len - scat_index;
+                                {
+                                   bytes_to_copy = (int) scat_mess->elements[scat].len - scat_index;
+                                }
+                                
                                 memcpy( &groups_buf[bytes_index], &(scat_mess->elements[scat].buf[scat_index]),
                                         bytes_to_copy );
-                                if( bytes_to_copy == scat_mess->elements[scat].len - scat_index )
+                                
+                                if( bytes_to_copy == (int) scat_mess->elements[scat].len - scat_index )
                                 {
                                         scat_index = 0;
                                         ++scat;
-                                } else {
+                                }
+                                else
+                                {
                                         scat_index += bytes_to_copy;
                                 }
                         }
+                        
                         total_index += flip_size;
+                        
                         target_index = total_index;
 
                         num_vs_ptr  = (int32u *)&groups_buf[0];
+                        
                         *num_vs_ptr = Flip_int32( *num_vs_ptr );
 
                         for( bytes_index = 0, j = first_scat ; bytes_index < flip_size ;
@@ -2047,20 +2078,25 @@ static	char		dummy_buf[10240];
                 /* set type to be old type + reject */
                 head_ptr->type = old_type | REJECT_MESS;
         }
-	*service_type = Clear_endian( head_ptr->type );
+        
+        *service_type = Clear_endian( head_ptr->type );
 
-	if( short_buffer )
-	{
-		for( remain = head_ptr->data_len - max_mess_len; remain > 0; remain -= ret ) 
-		{
-			to_read = remain;
-			if( to_read > sizeof( dummy_buf ) ) to_read = sizeof( dummy_buf );
-			while(((ret = recv( mbox, dummy_buf, to_read, 0 )) == -1 ) && ((sock_errno == EINTR) || (sock_errno == EAGAIN) || (sock_errno == EWOULDBLOCK)) )
-                                ;
-			if( ret <=0 )
-			{
-				Alarm( SESSION, "SP_scat_receive: failed receiving overflow on session %d, ret is %d: %s\n", 
-                                       mbox, ret, sock_strerror(sock_errno) );
+        if( short_buffer )
+        {
+           for( remain = head_ptr->data_len - max_mess_len; remain > 0; remain -= ret ) 
+           {
+              to_read = remain;
+              
+              if( to_read > (int) sizeof( dummy_buf ) )
+                  to_read = (int) sizeof( dummy_buf );
+              
+              while(((ret = recv( mbox, dummy_buf, to_read, 0 )) == -1 ) && ((sock_errno == EINTR) || (sock_errno == EAGAIN) || (sock_errno == EWOULDBLOCK)) )
+                 ;
+              
+              if( ret <=0 )
+              {
+                 Alarm( SESSION, "SP_scat_receive: failed receiving overflow on session %d, ret is %d: %s\n", 
+                        mbox, ret, sock_strerror(sock_errno) );
 
                                 Mutex_lock( &Struct_mutex );
                                 if( ses != SP_get_session( mbox ) ){
@@ -2247,56 +2283,77 @@ int     SP_get_vs_set_members( const char *memb_mess,
         return( vs_set->num_members );
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static  void    scat_read(void *dest_ptr, const scatter *msg, int start_byte, int copy_size)
 {
         int scat, scat_index, bytes_index, bytes_to_copy;
 
         scat = 0;
         scat_index = 0;
-        while(start_byte > (int) msg->elements[scat].len) 
+
+        //while(start_byte > (int) msg->elements[scat].len) 
+        //{
+        //        scat++;
+        //        start_byte -= msg->elements[scat].len;
+        //}
+
+        while(start_byte >= (int) msg->elements[scat].len)
         {
-                scat++;
-                start_byte -= msg->elements[scat].len;
+           start_byte -= (int) msg->elements[scat].len;
+           ++scat;
         }
+        
+        
         scat_index = start_byte;
         for( bytes_index = 0; bytes_index < copy_size ; bytes_index += bytes_to_copy )
         {
                 bytes_to_copy = copy_size - bytes_index;
                 if( bytes_to_copy > (int) msg->elements[scat].len - scat_index )
                         bytes_to_copy = msg->elements[scat].len - scat_index;
+
                 memcpy( dest_ptr, &(msg->elements[scat].buf[scat_index]), bytes_to_copy );
-                if( bytes_to_copy == msg->elements[scat].len - scat_index )
+
+                if( bytes_to_copy == (int) msg->elements[scat].len - scat_index )
                 {
                         scat_index = 0;
                         ++scat;
-                } else {
+                }
+                else
+                {
                         scat_index = bytes_to_copy;
                 }
         }
 }
 
-int     SP_scat_get_memb_info( const scatter *memb_mess_scat, 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int SP_scat_get_memb_info( const scatter *memb_mess_scat, 
                                const service service_type,
                                membership_info *memb_info)
 {
-        int32u my_vs_offset;
 
-        if ( !Is_membership_mess( service_type ) )
-                return(ILLEGAL_MESSAGE);
-
-        scat_read( &memb_info->gid, memb_mess_scat, 0, sizeof( group_id ));
-        
-        if ( Is_reg_memb_mess( service_type ) )
-        {
-                if( Is_caused_join_mess( service_type ) || 
-                    Is_caused_leave_mess( service_type ) ||
-                    Is_caused_disconnect_mess( service_type ) )
-                {
-                        scat_read(memb_info->changed_member, memb_mess_scat, SP_get_first_vs_set_offset_memb_mess()+SP_get_vs_set_members_offset_vs_set(), MAX_GROUP_NAME );
-                } else if( Is_caused_network_mess( service_type ) )
-                {
-                        memset(memb_info->changed_member, 0, MAX_GROUP_NAME);
-                }
+   int32u my_vs_offset;
+   
+   if ( !Is_membership_mess( service_type ) )
+      return(ILLEGAL_MESSAGE);
+   
+   scat_read( &memb_info->gid, memb_mess_scat, 0, sizeof( group_id ));
+   
+   if ( Is_reg_memb_mess( service_type ) )
+   {
+      if( Is_caused_join_mess( service_type ) || 
+          Is_caused_leave_mess( service_type ) ||
+          Is_caused_disconnect_mess( service_type ) )
+      {
+         scat_read(memb_info->changed_member, memb_mess_scat, SP_get_first_vs_set_offset_memb_mess()+SP_get_vs_set_members_offset_vs_set(), MAX_GROUP_NAME );
+      }
+      else if( Is_caused_network_mess( service_type ) )
+      {
+         memset(memb_info->changed_member, 0, MAX_GROUP_NAME);
+      }
                 scat_read( &(memb_info->num_vs_sets), memb_mess_scat, SP_get_num_vs_sets_offset_memb_mess(), sizeof( int32u ) );
                 scat_read( &my_vs_offset, memb_mess_scat, SP_get_offset_to_local_vs_set_offset(), sizeof( int32u ));
                 my_vs_offset += SP_get_first_vs_set_offset_memb_mess();

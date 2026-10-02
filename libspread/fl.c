@@ -106,61 +106,75 @@ void FL_version(int *major, int *minor, int *patch) {
   *patch = FL_PATCH_VERSION;
 }
 
-/* Establish a new fl connection. If SP_connect succceeds, create a new fl_conn instance. */
-int FL_connect(const char *daemon, const char *user, int priority, 
-			  mailbox *mbox, char private[MAX_GROUP_NAME]) {
-  int ret;
-  fl_conn *conn;        
+//----------------------------------------------------------------------
+// Establish a new fl connection. If SP_connect succceeds, create a new fl_conn instance.
+//----------------------------------------------------------------------
+//int FL_connect(const char *daemon, const char *user, int priority, 
+//               mailbox *mbox, char private[MAX_GROUP_NAME])
 
-  DEBUG(std_stkfprintf(stderr, 1, "FL_connect: daemon '%s', user '%s', priority %d\n",
+int FL_connect(const char *daemon, const char *user, int priority,
+               mailbox *mbox, char *private)
+{
+   
+   int ret;
+   fl_conn *conn;        
+   
+   DEBUG(std_stkfprintf(stderr, 1, "FL_connect: daemon '%s', user '%s', priority %d\n",
 		       daemon, user, priority));
 
-  if (FL_SP_version() < (float) 3.12) {             /* flush depends on the DROP_RECV semantics */
-    DEBUG(std_stkfprintf(stderr, 0, "REJECT_VERSION: SP too old v%f < v3.12\n", FL_SP_version()));
-    ret = REJECT_VERSION;
+   if (FL_SP_version() < (float) 3.12)  // flush depends on the DROP_RECV semantics 
+   {
+      DEBUG(std_stkfprintf(stderr, 0, "REJECT_VERSION: SP too old v%f < v3.12\n", FL_SP_version()));
+      ret = REJECT_VERSION;
 
-  } else if ((ret = SP_connect(daemon, user, priority, 1, mbox, private)) == ACCEPT_SESSION) {
-    DEBUG(std_stkfprintf(stderr, 0, "mbox %d, private '%s'\n", *mbox, private));
+   }
+   else if ((ret = SP_connect(daemon, user, priority, 1, mbox, private)) == ACCEPT_SESSION)
+   {
+      DEBUG(std_stkfprintf(stderr, 0, "mbox %d, private '%s'\n", *mbox, private));
 
-    if ((conn = (fl_conn*) calloc(1, sizeof(fl_conn))) == 0)
-      stderr_output(STDERR_ABORT, 0,"(%s, %d): calloc(1, %u)\n", __FILE__, __LINE__, sizeof(fl_conn));
+      if ((conn = (fl_conn*) calloc(1, sizeof(fl_conn))) == 0)
+         stderr_output(STDERR_ABORT, 0,"(%s, %d): calloc(1, %u)\n", __FILE__, __LINE__, sizeof(fl_conn));
+      
+      FL_MUTEX_construct(&conn->reserve_lock, STDMUTEX_FAST);
+      conn->reservations  = 0;
+      conn->disconnecting = 0;
+      FL_COND_construct(&conn->destroy_cond);
+      
+      FL_MUTEX_construct(&conn->recv_lock, STDMUTEX_FAST);
+      FL_MUTEX_construct(&conn->conn_lock, STDMUTEX_FAST);
+      
+      conn->mbox       = *mbox;
+      conn->priority   = priority;
+      conn->group_memb = 1;
+      
+      // strncpy(conn->daemon, daemon, MAX_GROUP_NAME);  // Not used
+      // strncpy(conn->user, user, MAX_GROUP_NAME);      // Not used
+      //strncpy(conn->private, private, MAX_GROUP_NAME);
+      strcpy(conn->private, private);
     
-    FL_MUTEX_construct(&conn->reserve_lock, STDMUTEX_FAST);
-    conn->reservations  = 0;
-    conn->disconnecting = 0;
-    FL_COND_construct(&conn->destroy_cond);
-    
-    FL_MUTEX_construct(&conn->recv_lock, STDMUTEX_FAST);
-    FL_MUTEX_construct(&conn->conn_lock, STDMUTEX_FAST);
-    
-    conn->mbox       = *mbox;
-    conn->priority   = priority;
-    conn->group_memb = 1;
-    strncpy(conn->daemon, daemon, MAX_GROUP_NAME);
-    strncpy(conn->user, user, MAX_GROUP_NAME);
-    strncpy(conn->private, private, MAX_GROUP_NAME);
-    
-    stdhash_construct(&conn->groups, sizeof(char*), sizeof(fl_group*), 
-		      group_name_ptr_cmp, group_name_ptr_hashcode, 0);
-    stddll_construct(&conn->mess_queue, sizeof(gc_buff_mess*));             /* <gc_buff_mess*> */
-    conn->bytes_queued = 0;
-    
-    FL_MUTEX_grab(&glob_conns_lock);                                         /* LOCK CONNS TAB */
-    stdhash_insert(&glob_conns, 0, mbox, &conn);                   /* add mbox -> conn mapping */
-    FL_MUTEX_drop(&glob_conns_lock);                                     /* UNLOCK CONNS TAB */
-  }
+      stdhash_construct(&conn->groups, sizeof(char*), sizeof(fl_group*), 
+                        group_name_ptr_cmp, group_name_ptr_hashcode, 0);
+      stddll_construct(&conn->mess_queue, sizeof(gc_buff_mess*));             /* <gc_buff_mess*> */
+      conn->bytes_queued = 0;
+      
+      FL_MUTEX_grab(&glob_conns_lock);                                         /* LOCK CONNS TAB */
+      stdhash_insert(&glob_conns, 0, mbox, &conn);                   /* add mbox -> conn mapping */
+      FL_MUTEX_drop(&glob_conns_lock);                                     /* UNLOCK CONNS TAB */
+   }
 
-  DEBUG(std_stkfprintf(stderr, -1, "FL_connect: ret %d\n", ret));
-
-  return ret;
+   DEBUG(std_stkfprintf(stderr, -1, "FL_connect: ret %d\n", ret));
+   
+   return ret;
 }
 
-/* Destroy a mbox. This fcn recursively reclaims all resources
-   associated with a connection named mbox, in a synchronized, proper
-   fashion and returns whatever SP_disconnect does. If mbox doesn't
-   represent a valid fl connection, it just returns ILLEGAL_SESSION.  
-*/
-int FL_disconnect(mailbox mbox) {
+//----------------------------------------------------------------------
+//  Destroy a mbox. This fcn recursively reclaims all resources
+//  associated with a connection named mbox, in a synchronized, proper
+//  fashion and returns whatever SP_disconnect does. If mbox doesn't
+//  represent a valid fl connection, it just returns ILLEGAL_SESSION.  
+//----------------------------------------------------------------------
+int FL_disconnect(mailbox mbox)
+{
   stdit hit;
   stdit lit;
   fl_conn *conn;
@@ -183,6 +197,7 @@ int FL_disconnect(mailbox mbox) {
 			   "%d reservations!\n", mbox, conn, conn->reservations));
       FL_COND_wait(&conn->destroy_cond, &conn->reserve_lock);
     }
+    
     assert(conn->reservations == 0);                         /* should be no more reservations */
 
     /* now, no other threads are using the connection -> safe to reclaim */
@@ -203,7 +218,9 @@ int FL_disconnect(mailbox mbox) {
     stddll_destruct(&conn->mess_queue);
     
     free(conn);
-  } else {
+  }
+  else
+  {
     FL_MUTEX_drop(&glob_conns_lock);                                     /* UNLOCK CONNS TAB */
     DEBUG(std_stkfprintf(stderr, 0, "FL ILLEGAL_SESSION(%d)\n", mbox));
     ret = ILLEGAL_SESSION; 
@@ -212,29 +229,44 @@ int FL_disconnect(mailbox mbox) {
   return ret;                                             /* return SP_disconnect return value */
 }
 
-int FL_join(mailbox mbox, const char *grp) {
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int FL_join(mailbox mbox, const char *grp)
+{
+   
   fl_conn  *conn;
   fl_group *group;
   int ret;
 
   DEBUG(std_stkfprintf(stderr, 1, "FL_join: mbox %d, group '%s'\n", mbox, grp));
-  if ((conn = lock_conn(mbox)) != 0) {
+
+  if ((conn = lock_conn(mbox)) != 0)
+  {
     /* ACHTUNG! You may not join a group when you are already involved with that group */
-    if ((group = get_group(conn, grp)) == 0) {
-      ret = SP_join(mbox, grp);
-      unlock_conn(conn);
-      if (ret != 0) {
-	if (ret == CONNECTION_CLOSED || ret == ILLEGAL_SESSION)
-	  FL_disconnect(mbox);
-	else if (ret != ILLEGAL_GROUP)
-	  stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: group %s: SP_join: unexpected error %d\n",
-		       __FILE__, __LINE__, mbox, grp, ret);
-      }
-    } else {
-      ret = ILLEGAL_GROUP;
-      unlock_conn(conn);
-      DEBUG(std_stkfprintf(stderr, 0, "FL ILLEGAL_GROUP('%s', %p) in mstate %d\n", grp, 
-			   group, group == 0 ? -1 : group->mstate));
+    if ((group = get_group(conn, grp)) == 0)
+    {
+       ret = SP_join(mbox, grp);
+       unlock_conn(conn);
+       if (ret != 0)
+       {
+          if (ret == CONNECTION_CLOSED || ret == ILLEGAL_SESSION)
+          {
+             FL_disconnect(mbox);
+          }
+          else if (ret != ILLEGAL_GROUP)
+          {
+             stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: group %s: SP_join: unexpected error %d\n",
+                           __FILE__, __LINE__, mbox, grp, ret);
+          }
+       }
+    }
+    else
+    {
+       ret = ILLEGAL_GROUP;
+       unlock_conn(conn);
+       DEBUG(std_stkfprintf(stderr, 0, "FL ILLEGAL_GROUP('%s', %p) in mstate %d\n", grp, 
+                            group, group == 0 ? -1 : (int) group->mstate));
     }
   } else {
     DEBUG(std_stkfprintf(stderr, 0, "FL ILLEGAL_SESSION(%d)\n", mbox));
@@ -244,35 +276,49 @@ int FL_join(mailbox mbox, const char *grp) {
   return ret;
 }
 
-int FL_leave(mailbox mbox, const char *grp) {
-  fl_conn  *conn;
-  fl_group *group;
-  int ret;
-
-  DEBUG(std_stkfprintf(stderr, 1, "FL_leave: mbox %d, group '%s'\n", mbox, grp));
-  if ((conn = lock_conn(mbox)) != 0) {
-    /* ACHTUNG! If you are a joined member of a fl group only then you can leave it only once! */
-    if ((group = get_group(conn, grp)) != 0 && group->mstate == JOINED) {
-      group->mstate = LEAVING;
-      ret = SP_leave(mbox, grp);
-      unlock_conn(conn);
-      if (ret != 0) {
-	if (ret == CONNECTION_CLOSED || ret == ILLEGAL_SESSION)
-	  FL_disconnect(mbox);
-	else if (ret == ILLEGAL_GROUP)
-	  stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: group %s: SP_leave: ILLEGAL_GROUP\n", 
-		       __FILE__, __LINE__, mbox, grp);
-	else
-	  stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: group %s: SP_leave: unexpected error %d\n", 
-		       __FILE__, __LINE__, mbox, grp, ret);
-      }
-    } else {
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int FL_leave(mailbox mbox, const char *grp)
+{
+   
+   fl_conn  *conn;
+   fl_group *group;
+   int ret;
+   
+   DEBUG(std_stkfprintf(stderr, 1, "FL_leave: mbox %d, group '%s'\n", mbox, grp));
+   
+   if ((conn = lock_conn(mbox)) != 0)
+   {
+      // ACHTUNG! If you are a joined member of a fl group only then you can leave it only once!
+      
+    if ((group = get_group(conn, grp)) != 0 && group->mstate == JOINED)
+    {
+       group->mstate = LEAVING;
+       ret = SP_leave(mbox, grp);
+       unlock_conn(conn);
+       if (ret != 0)
+       {
+          if (ret == CONNECTION_CLOSED || ret == ILLEGAL_SESSION)
+             FL_disconnect(mbox);
+          else if (ret == ILLEGAL_GROUP)
+             stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: group %s: SP_leave: ILLEGAL_GROUP\n", 
+                           __FILE__, __LINE__, mbox, grp);
+          else
+             stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: group %s: SP_leave: unexpected error %d\n", 
+                           __FILE__, __LINE__, mbox, grp, ret);
+       }
+    }
+    else
+    {
       ret = ILLEGAL_GROUP;
       unlock_conn(conn);
       DEBUG(std_stkfprintf(stderr, 0, "FL ILLEGAL_GROUP('%s', %p) in mstate %d\n", grp, 
-			   group, group == 0 ? -1 : group->mstate));
+                           group, group == 0 ? -1 : (int) group->mstate));
     }
-  } else {
+   }
+   else
+   {
     DEBUG(std_stkfprintf(stderr, 0, "FL ILLEGAL_SESSION(%d)\n", mbox));
     ret = ILLEGAL_SESSION;
   }
@@ -562,7 +608,9 @@ int FL_get_vs_set_offset_memb_mess(void)
 /* (2) in case this connection is joined through a NETWORK event, it will report the proper    */
 /* singleton vs set, and (3) this also gives me correct behavior on delivery of user's data    */
 /* msgs (is sender in my current fl view?).                                                    */
-static fl_group *create_fl_group(const char *conn_name, const char *group_name) {
+static fl_group *create_fl_group(const char *conn_name, const char *group_name)
+{
+   
   fl_group *group;
   group_id gid = { { 0 } };
 
@@ -572,7 +620,10 @@ static fl_group *create_fl_group(const char *conn_name, const char *group_name) 
   if ((group = (fl_group*) calloc(1, sizeof(fl_group))) == 0)
     stderr_output(STDERR_ABORT, 0,"(%s, %d): calloc(1, %u)\n", __FILE__, __LINE__, sizeof(fl_group));
 
-  strncpy(group->group, group_name, MAX_GROUP_NAME);
+  // Fix compiler warning
+  strncpy(group->group, group_name, MAX_GROUP_NAME - 1);
+  group->group[MAX_GROUP_NAME - 1] = '\0';
+  
   group->mstate = JOINING;                                          /* not a JOINED member yet */
   group->vstate = AGREE;        /* when I handle_next_memb_change first time -> sends FLUSH_OK */
   group->curr_change = 0;
@@ -929,21 +980,36 @@ static gc_buff_mess *deliver(fl_conn *conn, gc_recv_mess *um, gc_buff_mess *bm,
   return ret;
 }
 
-static gc_buff_mess *deliver_trans_sig(fl_conn *conn, gc_recv_mess *um, char *group) {
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static gc_buff_mess *deliver_trans_sig(fl_conn *conn, gc_recv_mess *um, char *group)
+{
+   
   gc_buff_mess trans_sig = { 0 }, *ret; /* sets everything to zero */
-
+  
   DEBUG(std_stkfprintf(stderr, 1, "deliver_trans_sig: mbox(%d, %p), group '%s'\n",
 		       conn->mbox, conn, group));
+  
   trans_sig.mbox = conn->mbox;
   trans_sig.serv_type = TRANSITION_MESS;
-  strncpy(trans_sig.sender, group, MAX_GROUP_NAME);
+
+  // Boundary ...
+  strncpy(trans_sig.sender, group, MAX_GROUP_NAME - 1);
+  
   ret = deliver(conn, um, &trans_sig, 0);
 
   DEBUG(std_stkfprintf(stderr, -1, "deliver_trans_sig: ret buff mess %p\n", ret));
   return ret;
+
 }
 
-static gc_buff_mess *deliver_flush_req(fl_conn *conn, gc_recv_mess *um, char *group) {
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static gc_buff_mess *deliver_flush_req(fl_conn *conn, gc_recv_mess *um, char *group)
+{
+   
   gc_buff_mess flush_req = { 0 }, *ret; /* sets everything to zero */
 
   DEBUG(std_stkfprintf(stderr, 1, "deliver_flush_req: mbox(%d, %p), group '%s'\n",
@@ -1023,11 +1089,19 @@ static int buffm_to_userm(gc_recv_mess *um, const gc_buff_mess *bm) {
   return ret;
 }
 
-/* copy info from a user's parameters to a buffered message */
-static void userm_to_buffm(gc_buff_mess *bm, const gc_recv_mess *um) {
+//----------------------------------------------------------------------
+// copy info from a user's parameters to a buffered message
+//----------------------------------------------------------------------
+static void userm_to_buffm(gc_buff_mess *bm, const gc_recv_mess *um)
+{
+   
   bm->mbox = um->mbox;
   bm->serv_type = *um->serv_type;
-  strncpy(bm->sender, um->sender, MAX_GROUP_NAME);
+
+  // Garantee lenght
+  strncpy(bm->sender, um->sender, MAX_GROUP_NAME -1);
+  bm->sender[MAX_GROUP_NAME - 1] = '\0';
+  
   bm->mess_type = *um->mess_type;
   bm->endian_mismatch = *um->endian_mismatch;
 
@@ -1054,17 +1128,25 @@ static void userm_to_buffm(gc_buff_mess *bm, const gc_recv_mess *um) {
 
     /* get scat info out of the msg: either in um->scat_mess or um->new_msg */
     get_scat_info(um, &bm->mess_len, &scat);
-    if (bm->mess_len != 0) {
-      if ((bm->mess = (char*) malloc(bm->mess_len)) == 0)
-	stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%d)\n", __FILE__, __LINE__, bm->mess_len);
-
-      err = scatp_begin(&um_pos, scat);
-      assert(err == 0);
-      err = scatp_cpy1(bm->mess, &um_pos, bm->mess_len);
-      assert(err == bm->mess_len);    
-    } else
+    if (bm->mess_len != 0)
+    {
+       if ((bm->mess = (char*) malloc(bm->mess_len)) == 0)
+       {
+          stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%d)\n", __FILE__, __LINE__, bm->mess_len);
+       }
+       
+       err = scatp_begin(&um_pos, scat);
+       assert(err == 0);
+       err = scatp_cpy1(bm->mess, &um_pos, bm->mess_len);
+       assert(err == bm->mess_len);    
+    }
+    else
+    {
       bm->mess = 0;
-  } else {
+    }
+  }
+  else
+  {
     stderr_output(STDERR_ABORT, 0,"not sure about this path: if ever triggered think about it\n");
     DEBUG(std_stkfprintf(stderr, 0, "copying an error message to a buffm: ret %d\n", um->ret));
     bm->num_groups = 0;
@@ -1231,268 +1313,286 @@ static int FL_int_scat_multicast(mailbox mbox, service serv_type, const char *gr
   return ret;
 }
 
-/* try to read in a msg from the SP layer into m and make it presentable to the user 
-   returns non-zero if user's parameters shouldn't be processed, but, instead returned 
-*/
+//----------------------------------------------------------------------
+// try to read in a msg from the SP layer into m and make it presentable to the user 
+//   returns non-zero if user's parameters shouldn't be processed, but, instead returned 
+//----------------------------------------------------------------------
 static int FL_int_receive(gc_recv_mess *m) {
-  int alloced_groups = 0;                             /* boolean - did I alloc groups buffers? */
-  int alloced_buffer = 0;                           /* boolean - did I alloc a message buffer? */
-  int max_groups;                                        /* max_groups to be passed to receive */
-  int orig_max_groups = m->max_groups;                                    /* user's max_groups */
-  char (*groups)[MAX_GROUP_NAME] = m->groups;                /* groups to be passed to receive */
-  scatter *scat = m->scat_mess;                             /* scatter to be passed to receive */
-  int success = 0;                                                /* boolean - did it succeed? */
+   int alloced_groups = 0;                             /* boolean - did I alloc groups buffers? */
+   int alloced_buffer = 0;                           /* boolean - did I alloc a message buffer? */
+   int max_groups;                                        /* max_groups to be passed to receive */
+   int orig_max_groups = m->max_groups;                                    /* user's max_groups */
+   char (*groups)[MAX_GROUP_NAME] = m->groups;                /* groups to be passed to receive */
+   scatter *scat = m->scat_mess;                             /* scatter to be passed to receive */
+   int success = 0;                                                /* boolean - did it succeed? */
 
-  /* here I reserve space in groups for the destination group if it is a SUBGROUP_CAST msg */
-  if (m->max_groups != 0)
-    max_groups = m->max_groups - 1;
-  else
-    max_groups = 0;
+   /* here I reserve space in groups for the destination group if it is a SUBGROUP_CAST msg */
+   if (m->max_groups != 0)
+      max_groups = m->max_groups - 1;
+   else
+      max_groups = 0;
 
-  /* don't use DROP_RECV semantics: flush needs to see entire data of msg: then we can drop */
-  *m->serv_type = (m->orig_serv_type & ~DROP_RECV);         
+   /* don't use DROP_RECV semantics: flush needs to see entire data of msg: then we can drop */
+   *m->serv_type = (m->orig_serv_type & ~DROP_RECV);         
 
-  DEBUG(std_stkfprintf(stderr, 1, "FL_int_receive: mbox %d, serv 0x%X, max groups %d, "
-		       "grps %p, scat %p, scat_cap %ld\n", m->mbox, *m->serv_type, max_groups, 
-		       groups, scat, scat_capacity(scat)));
+   DEBUG(std_stkfprintf(stderr, 1, "FL_int_receive: mbox %d, serv 0x%X, max groups %d, "
+                        "grps %p, scat %p, scat_cap %ld\n", m->mbox, *m->serv_type, max_groups, 
+                        groups, scat, scat_capacity(scat)));
 
-  /* assert that there aren't any alloc'ed receive buffers, the user's 
-     max_groups was legal and m doesn't already have a msg */
-  assert(m->num_new_grps == 0 && m->new_msg.num_elements == 0 && 
-	 orig_max_groups >= 0 && !m->delivered);
+   /* assert that there aren't any alloc'ed receive buffers, the user's 
+      max_groups was legal and m doesn't already have a msg */
+   assert(m->num_new_grps == 0 && m->new_msg.num_elements == 0 && 
+          orig_max_groups >= 0 && !m->delivered);
 
-  /* perform the first receive */
-  m->ret = SP_scat_receive(m->mbox, m->serv_type, m->sender, max_groups, m->num_groups,
-			   groups, m->mess_type, m->endian_mismatch, scat);
+   /* perform the first receive */
+   m->ret = SP_scat_receive(m->mbox, m->serv_type, m->sender, max_groups, m->num_groups,
+                            groups, m->mess_type, m->endian_mismatch, scat);
 
-  /* check for buffer errors: should be if buffers too short, I didn't use DROP_RECV */
-  if (m->ret == GROUPS_TOO_SHORT || m->ret == BUFFER_TOO_SHORT) {
-    DEBUG(std_stkfprintf(stderr, 0, "Buffer error after initial recv: ret %d, num_groups %d, "
-			 "endian %d\n", m->ret, *m->num_groups, *m->endian_mismatch));
+   /* check for buffer errors: should be if buffers too short, I didn't use DROP_RECV */
+   if (m->ret == GROUPS_TOO_SHORT || m->ret == BUFFER_TOO_SHORT) {
+      DEBUG(std_stkfprintf(stderr, 0, "Buffer error after initial recv: ret %d, num_groups %d, "
+                           "endian %d\n", m->ret, *m->num_groups, *m->endian_mismatch));
 
-    /* if the groups buffer was too short and the message was a SUBGROUP_CAST then the groups
-       buffer didn't have room for the destination group too: so decrement num_groups to reflect */
-    if (*m->num_groups < 0 && Is_subgroup_mess(*m->serv_type)) {
-      DEBUG(std_stkfprintf(stderr, 0, "GROUPS error, subgroup_mess: decrementing num_groups\n"));
-      --*m->num_groups;
-    }
-
-    /* if the user requested DROP_RECV, or if the user's groups was exactly big enough (because 
-       I shrunk max_groups above) and there was no msg buffer error (reported by endian_mismatch) 
-       or I can't tell if there was a buffer error because 3.12 didn't report that properly then
-       allocate the necessary buffers and re-receive - else return buffer error to user
-    */
-    if ((m->orig_serv_type & DROP_RECV) != 0 || 
-	(-*m->num_groups <= orig_max_groups && 
-	 (*m->endian_mismatch == 0 || FL_SP_version() == (float) 3.12))) {
-      DEBUG(std_stkfprintf(stderr, 0, "Either DROP_RECV or might be able to re-receive!\n"));
-
-      /* user's groups array actually was too small to contain the groups, so allocate some */
-      if (-*m->num_groups > orig_max_groups) {         /* implies *m->num_groups is negative */
-	size_t byte_size;
-
-	max_groups = -*m->num_groups;                     /* set max_groups to be big enough */
-	byte_size = max_groups * MAX_GROUP_NAME;          /* calculate necessary memory size */
-
-	DEBUG(std_stkfprintf(stderr, 0, "User's GROUPS buff was actually TOO SMALL %d < %d\n", 
-			     orig_max_groups, -*m->num_groups));
-
-	alloced_groups  = 1;                         /* record that I alloc'ed group buffers */
-	m->num_new_grps = max_groups;               /* record size of alloc'ed group buffers */
-
-	/* actually allocate a new groups array to be used in re-receive */
-	if ((groups = m->new_grps = (char(*)[MAX_GROUP_NAME]) malloc(byte_size)) == 0)
-	  stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%u)\n", __FILE__, __LINE__, byte_size);
-      } else {
-	DEBUG(std_stkfprintf(stderr, 0, "User's GROUPS buff was big enough %d >= %d\n",
-			     orig_max_groups, -*m->num_groups));
-	max_groups = orig_max_groups;        /* groups will fit into user's original buffers */
+      /* if the groups buffer was too short and the message was a SUBGROUP_CAST then the groups
+         buffer didn't have room for the destination group too: so decrement num_groups to reflect */
+      if (*m->num_groups < 0 && Is_subgroup_mess(*m->serv_type)) {
+         DEBUG(std_stkfprintf(stderr, 0, "GROUPS error, subgroup_mess: decrementing num_groups\n"));
+         --*m->num_groups;
       }
+
+      /* if the user requested DROP_RECV, or if the user's groups was exactly big enough (because 
+         I shrunk max_groups above) and there was no msg buffer error (reported by endian_mismatch) 
+         or I can't tell if there was a buffer error because 3.12 didn't report that properly then
+         allocate the necessary buffers and re-receive - else return buffer error to user
+      */
+      if ((m->orig_serv_type & DROP_RECV) != 0 || 
+          (-*m->num_groups <= orig_max_groups && 
+           (*m->endian_mismatch == 0 || FL_SP_version() == (float) 3.12))) {
+         DEBUG(std_stkfprintf(stderr, 0, "Either DROP_RECV or might be able to re-receive!\n"));
+
+         /* user's groups array actually was too small to contain the groups, so allocate some */
+         if (-*m->num_groups > orig_max_groups) {         /* implies *m->num_groups is negative */
+            size_t byte_size;
+
+            max_groups = -*m->num_groups;                     /* set max_groups to be big enough */
+            byte_size = max_groups * MAX_GROUP_NAME;          /* calculate necessary memory size */
+
+            DEBUG(std_stkfprintf(stderr, 0, "User's GROUPS buff was actually TOO SMALL %d < %d\n", 
+                                 orig_max_groups, -*m->num_groups));
+
+            alloced_groups  = 1;                         /* record that I alloc'ed group buffers */
+            m->num_new_grps = max_groups;               /* record size of alloc'ed group buffers */
+
+            /* actually allocate a new groups array to be used in re-receive */
+            if ((groups = m->new_grps = (char(*)[MAX_GROUP_NAME]) malloc(byte_size)) == 0)
+               stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%u)\n", __FILE__, __LINE__, byte_size);
+         } else {
+            DEBUG(std_stkfprintf(stderr, 0, "User's GROUPS buff was big enough %d >= %d\n",
+                                 orig_max_groups, -*m->num_groups));
+            max_groups = orig_max_groups;        /* groups will fit into user's original buffers */
+         }
       
-      /* now check and see if the user's msg buffer was too small: necessary size reported in
-         endian_mismatch in versions later than 3.12, 3.12 didn't do it but did do DROP_RECV */
-      if (*m->endian_mismatch < 0 || FL_SP_version() == (float) 3.12) {
-	DEBUG(std_stkfprintf(stderr, 0, "Endian mismatch reports msg buffer is too small\n"));
-	alloced_buffer = 1;                          /* record that I alloc'ed a mess buffer */
-	scat = &m->new_msg;                         /* point scat at my alloc'ed mess buffer */
-	scat->num_elements = 1;
+         /* now check and see if the user's msg buffer was too small: necessary size reported in
+            endian_mismatch in versions later than 3.12, 3.12 didn't do it but did do DROP_RECV */
+         if (*m->endian_mismatch < 0 || FL_SP_version() == (float) 3.12) {
+            DEBUG(std_stkfprintf(stderr, 0, "Endian mismatch reports msg buffer is too small\n"));
+            alloced_buffer = 1;                          /* record that I alloc'ed a mess buffer */
+            scat = &m->new_msg;                         /* point scat at my alloc'ed mess buffer */
+            scat->num_elements = 1;
 
-	/* figure out how big the mess buffer needs to be */
-	if (FL_SP_version() != (float) 3.12)
-	  scat->elements[0].len = -*m->endian_mismatch;       /* capacity of msg to be recvd */
-	else
-	  scat->elements[0].len = 102400;      /* endian_mismatch is buggy, use max msg size */
+            /* figure out how big the mess buffer needs to be */
+            if (FL_SP_version() != (float) 3.12)
+               scat->elements[0].len = -*m->endian_mismatch;       /* capacity of msg to be recvd */
+            else
+               scat->elements[0].len = 102400;      /* endian_mismatch is buggy, use max msg size */
 
-	/* actually allocate the new mess buffer */
-	if ((scat->elements[0].buf = (char*) malloc(scat->elements[0].len)) == 0)
-	  stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%d)\n", __FILE__, __LINE__, scat->elements[0].len);
-      } else
-	DEBUG(std_stkfprintf(stderr, 0, "No msg buffer error reported\n"));
+            /* actually allocate the new mess buffer */
+            if ((scat->elements[0].buf = (char*) malloc(scat->elements[0].len)) == 0)
+               stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%d)\n", __FILE__, __LINE__, scat->elements[0].len);
+         } else
+            DEBUG(std_stkfprintf(stderr, 0, "No msg buffer error reported\n"));
 
-      /* try to receive again (shouldn't fail now) and don't use DROP_RECV again */
-      *m->serv_type = (m->orig_serv_type & ~DROP_RECV);
-      DEBUG(std_stkfprintf(stderr, 0, "Re-receive: mbox %d, serv 0x%X, max groups %d, grps %p, "
-			   "scat %p, scat_cap %ld\n", m->mbox, *m->serv_type, max_groups,
-			   groups, scat, scat_capacity(scat)));
+         /* try to receive again (shouldn't fail now) and don't use DROP_RECV again */
+         *m->serv_type = (m->orig_serv_type & ~DROP_RECV);
+         DEBUG(std_stkfprintf(stderr, 0, "Re-receive: mbox %d, serv 0x%X, max groups %d, grps %p, "
+                              "scat %p, scat_cap %ld\n", m->mbox, *m->serv_type, max_groups,
+                              groups, scat, scat_capacity(scat)));
 
-      /* perform the re-receive */
-      m->ret = SP_scat_receive(m->mbox, m->serv_type, m->sender, max_groups, m->num_groups,
-			       groups, m->mess_type, m->endian_mismatch, scat);
+         /* perform the re-receive */
+         m->ret = SP_scat_receive(m->mbox, m->serv_type, m->sender, max_groups, m->num_groups,
+                                  groups, m->mess_type, m->endian_mismatch, scat);
 
-      /* if we had a buffer problem then code above or SP is buggy -> abort */
-      if (m->ret == GROUPS_TOO_SHORT || m->ret == BUFFER_TOO_SHORT)
-	stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: buggy SP_recv DROP_RECV ret %d: "
-		     "max_groups %d: num_groups %d: scat_cap %ld: endian_mismatch %d\n", 
-		     __FILE__, __LINE__, m->mbox, m->ret, max_groups, *m->num_groups, 
-		     scat_capacity(scat), *m->endian_mismatch);
-    }
-  }
-  /* receive or re-receive succeeded */
-  if (m->ret >= 0) {
-    int not_end = 1;                            /* boolean - did I not seek to end of msg yet? */
-    scatp pos, user_pos;
-    long err;
+         /* if we had a buffer problem then code above or SP is buggy -> abort */
+         if (m->ret == GROUPS_TOO_SHORT || m->ret == BUFFER_TOO_SHORT)
+            stderr_output(STDERR_ABORT, 0,"(%s, %d): mbox %d: buggy SP_recv DROP_RECV ret %d: "
+                          "max_groups %d: num_groups %d: scat_cap %ld: endian_mismatch %d\n", 
+                          __FILE__, __LINE__, m->mbox, m->ret, max_groups, *m->num_groups, 
+                          scat_capacity(scat), *m->endian_mismatch);
+      }
+   }
+   /* receive or re-receive succeeded */
+   if (m->ret >= 0) {
+      int not_end = 1;                            /* boolean - did I not seek to end of msg yet? */
+      scatp pos, user_pos;
+      long err;
 
-    /* successful recv: debug print out what I got! */
-    DEBUG(std_stkfprintf(stderr, 0, "Successful recv: ret %d, serv 0x%X, sender '%s', "
-			 "num_groups %d, mess_type %d, endian %d, Groups:\n", m->ret, 
-			 *m->serv_type, m->sender, *m->num_groups, 
-			 *m->mess_type, *m->endian_mismatch);
-	  for (err = 0; err < *m->num_groups; ++err) {
-	    std_stkfprintf(stderr, 0, "\t`%s'\n", groups[err]);
-	  });
+      /* successful recv: debug print out what I got! */
+      DEBUG(std_stkfprintf(stderr, 0, "Successful recv: ret %d, serv 0x%X, sender '%s', "
+                           "num_groups %d, mess_type %d, endian %d, Groups:\n", m->ret, 
+                           *m->serv_type, m->sender, *m->num_groups, 
+                           *m->mess_type, *m->endian_mismatch);
+            for (err = 0; err < *m->num_groups; ++err) {
+               std_stkfprintf(stderr, 0, "\t`%s'\n", groups[err]);
+            });
 
-    /* subgroup and flush messages have appended data that needs to be extracted and removed */
-    if (Is_regular_mess(*m->serv_type)) {
-      if (Is_subgroup_mess(*m->serv_type)) {  /* subgroup msgs have destination group appended */
-	char *ref_grp;
+      /* subgroup and flush messages have appended data that needs to be extracted and removed */
+      if (Is_regular_mess(*m->serv_type)) {
+         if (Is_subgroup_mess(*m->serv_type)) {  /* subgroup msgs have destination group appended */
+            char *ref_grp;
 
-	assert(m->ret >= MAX_GROUP_NAME);                                /* ensure fully recvd */
-	m->ret -= MAX_GROUP_NAME;                           /* correct to ignore the appendage */
+            assert(m->ret >= MAX_GROUP_NAME);                                /* ensure fully recvd */
+            m->ret -= MAX_GROUP_NAME;                           /* correct to ignore the appendage */
 	
-	err = scatp_set(&pos, scat, m->ret, SEEK_SET);                /* seek to copy position */
-	assert(err == 0);
-	not_end = 0;                                       /* pos was seeked to new end of msg */
+            err = scatp_set(&pos, scat, m->ret, SEEK_SET);                /* seek to copy position */
+            assert(err == 0);
+            not_end = 0;                                       /* pos was seeked to new end of msg */
 	
-	/* copy out reference group: put after last used element in groups: should fit */
-	ref_grp = (char*) (groups + *m->num_groups);
-	err = scatp_cpy1(ref_grp, &pos, MAX_GROUP_NAME);
-	assert(err == MAX_GROUP_NAME);
-	++*m->num_groups;                 /* increment num_groups to include destination group */
-	DEBUG(std_stkfprintf(stderr, 0, "Subgroupcast mess: Ref group is '%s'!\n", ref_grp));
+            /* copy out reference group: put after last used element in groups: should fit */
+            ref_grp = (char*) (groups + *m->num_groups);
+            err = scatp_cpy1(ref_grp, &pos, MAX_GROUP_NAME);
+            assert(err == MAX_GROUP_NAME);
+            ++*m->num_groups;                 /* increment num_groups to include destination group */
+            DEBUG(std_stkfprintf(stderr, 0, "Subgroupcast mess: Ref group is '%s'!\n", ref_grp));
+         }
+
+         /* all reserved FLUSH msg types have a group_id attached on end of msg */
+         if (IS_ILLEGAL_SEND_MTYPE(*m->mess_type)) {
+            DEBUG(std_stkfprintf(stderr, 0, "Recvd an internal flush mess of type %s\n", 
+                                 *m->mess_type == FLUSH_OK_MESS ? "FLUSH_OK_MESS" : 
+                                 (*m->mess_type == FLUSH_RECV_MESS ? "FLUSH_RECV_MESS" : 
+                                  (*m->mess_type == VULNERABLE_MESS ? "VULNERABLE_MESS" : 
+                                   "UNKNOWN TYPE!"))));
+    
+            //assert(m->ret >= sizeof(group_id));                              /* ensure fully recvd */
+            //m->ret -= sizeof(group_id);                         /* correct to ignore the appendage */
+
+            assert(m->ret >= (int) sizeof(group_id));                              /* ensure fully recvd */
+            m->ret -= (int) sizeof(group_id);                         /* correct to ignore the appendage */
+	
+            if (not_end) {
+               err = scatp_set(&pos, scat, m->ret, SEEK_SET);              /* seek to copy position */
+               assert(err == 0);
+               not_end = 0;                                                        /* seeked to end */
+            } else {
+               err = scatp_jbackward(&pos, sizeof(group_id));                 /* move back from end */
+               assert(err == (int) sizeof(group_id));
+            }
+            err = scatp_cpy1((char*) &m->dst_gid, &pos, sizeof(group_id));         /* copy out vid */
+            assert(err == (int)sizeof(group_id));
+
+            /* endian correct the vid if necessary */
+            if (*m->endian_mismatch != 0) {
+               stdflip32(m->dst_gid.id);
+               stdflip32(m->dst_gid.id + 1);
+               stdflip32(m->dst_gid.id + 2);
+            }
+            DEBUG(std_stkfprintf(stderr, 0, "Dst gid is %d %d %d!\n", m->dst_gid.id[0], 
+                                 m->dst_gid.id[1], m->dst_gid.id[2]));
+
+            /* VULNERABLE msgs also have the original user's msg type appended */
+            if (*m->mess_type == VULNERABLE_MESS)
+            {
+               
+               assert(m->ret >= (int) sizeof(int16));                               /* ensure fully recvd */
+               m->ret -= (int) sizeof(int16);                          /* correct to ignore the appendage */
+       
+               m->vulnerable = 1;                                           /* mark m as vulnerable */
+
+               /* here should already be seeked to end */
+               err = scatp_jbackward(&pos, sizeof(int16));              /* move back from end again */
+               assert(err == (int) sizeof(int16));	  
+               err = scatp_cpy1((char*) m->mess_type, &pos, sizeof(int16));    /* cpy out mess type */
+               assert(err == (int) sizeof(int16));
+       
+               /* endian correct the message type if necessary */
+               if (*m->endian_mismatch != 0)
+                  stdflip16(m->mess_type);
+       
+               DEBUG(std_stkfprintf(stderr, 0, "VULNERABLE: Orig msg type is %d!\n", *m->mess_type));
+            }
+         }
+      }
+      else if (Is_reg_memb_mess(*m->serv_type))
+      {
+         membership_info m_info;
+         
+         // if its a regular membership message read the group id out of the msg
+         assert(m->ret >= (int) (sizeof(group_id) + sizeof(int) + MAX_GROUP_NAME));    // ensure received
+         
+         err = SP_scat_get_memb_info( scat, *m->serv_type, &m_info);
+       
+         memcpy(&m->dst_gid, &m_info.gid, sizeof(group_id) );
+         
+         assert(err == (int) sizeof(group_id)); // already endian corrected
+         
+         DEBUG(std_stkfprintf(stderr, 0, "Recvd a SP reg memb mess: New SP gid is %d %d %d\n", 
+                              m->dst_gid.id[0], m->dst_gid.id[1], m->dst_gid.id[2]));
+      }
+    
+      /* if I alloc'ed a msg buffer -> user probably requested DROP_RECV, need to copy from 
+         alloc'ed buffers into user's buffers and set m->ret to an appropriate value */
+      if (alloced_buffer) {
+         m->new_msg.elements[0].len = m->ret;                          /* record size of user msg */
+         err = scatp_begin(&user_pos, m->scat_mess);
+         assert(err == 0);
+         err = scatp_begin(&pos, &m->new_msg);
+         assert(err == 0);
+
+         /* perform copy from alloc'ed scat to user's scat */
+         err = scatp_cpy0(&user_pos, &pos, m->ret); 
+         assert(err >= 0 && err <= m->ret);                 /* shouldn't detect illegal scat here */
+
+         /* possible that removing appended data made the user's msg buffer big enough */
+         /* this also catches if I didn't really need to allocate a msg buffer (SP 3.12 bug) */
+         if (err != m->ret) {                              /* didn't all fit into user's msg buff */
+            DEBUG(std_stkfprintf(stderr, 0, "User msg buffer still too short!\n"));
+
+            /* 3.12: if !DROP_RECV, then report negative msg size correctly in endian_mismatch */
+            if ((m->orig_serv_type & DROP_RECV) == 0 && FL_SP_version() == (float) 3.12) {
+               DEBUG(std_stkfprintf(stderr, 0, "Alloced msg buff: SP 3.12 DROP_RECV bug: error!\n"));
+               success = -1;    /* non-zero success indicates an error that should be returned now! */
+               *m->endian_mismatch = -m->ret;
+            }
+            m->ret = BUFFER_TOO_SHORT;
+         } else /* their buffer was big enough! */
+            DEBUG(std_stkfprintf(stderr, 0, "Unnecessary msg buff alloc! No BUFFER_TOO_SHORT!\n"));
       }
 
-      /* all reserved FLUSH msg types have a group_id attached on end of msg */
-      if (IS_ILLEGAL_SEND_MTYPE(*m->mess_type)) {
-	DEBUG(std_stkfprintf(stderr, 0, "Recvd an internal flush mess of type %s\n", 
-			     *m->mess_type == FLUSH_OK_MESS ? "FLUSH_OK_MESS" : 
-			     (*m->mess_type == FLUSH_RECV_MESS ? "FLUSH_RECV_MESS" : 
-			      (*m->mess_type == VULNERABLE_MESS ? "VULNERABLE_MESS" : 
-			       "UNKNOWN TYPE!"))));
-	assert(m->ret >= sizeof(group_id));                              /* ensure fully recvd */
-	m->ret -= sizeof(group_id);                         /* correct to ignore the appendage */
-	
-	if (not_end) {
-	  err = scatp_set(&pos, scat, m->ret, SEEK_SET);              /* seek to copy position */
-	  assert(err == 0);
-	  not_end = 0;                                                        /* seeked to end */
-	} else {
-	  err = scatp_jbackward(&pos, sizeof(group_id));                 /* move back from end */
-	  assert(err == sizeof(group_id));
-	}
-	err = scatp_cpy1((char*) &m->dst_gid, &pos, sizeof(group_id));         /* copy out vid */
-	assert(err == sizeof(group_id));
+      /* if I alloc'ed groups buffers then user's buffers were too small and requested DROP_RECV */
+      if (alloced_groups)
+      {
+         DEBUG(std_stkfprintf(stderr, 0, "Alloced groups buff, copying over: GROUPS_TOO_SHORT\n"));
+         memcpy(m->groups, m->new_grps, m->max_groups * MAX_GROUP_NAME);
 
-	/* endian correct the vid if necessary */
-	if (*m->endian_mismatch != 0) {
-	  stdflip32(m->dst_gid.id);
-	  stdflip32(m->dst_gid.id + 1);
-	  stdflip32(m->dst_gid.id + 2);
-	}
-	DEBUG(std_stkfprintf(stderr, 0, "Dst gid is %d %d %d!\n", m->dst_gid.id[0], 
-			     m->dst_gid.id[1], m->dst_gid.id[2]));
-
-	/* VULNERABLE msgs also have the original user's msg type appended */
-	if (*m->mess_type == VULNERABLE_MESS) { 
-	  assert(m->ret >= sizeof(int16));                               /* ensure fully recvd */
-	  m->ret -= sizeof(int16);                          /* correct to ignore the appendage */
-	  
-	  m->vulnerable = 1;                                           /* mark m as vulnerable */
-
-	  /* here should already be seeked to end */
-	  err = scatp_jbackward(&pos, sizeof(int16));              /* move back from end again */
-	  assert(err == sizeof(int16));	  
-	  err = scatp_cpy1((char*) m->mess_type, &pos, sizeof(int16));    /* cpy out mess type */
-	  assert(err == sizeof(int16));
-	  
-	  /* endian correct the message type if necessary */
-	  if (*m->endian_mismatch != 0)
-	    stdflip16(m->mess_type);
-
-	  DEBUG(std_stkfprintf(stderr, 0, "VULNERABLE: Orig msg type is %d!\n", *m->mess_type));
-	}
+         /* if it is a subgroup msg and there is space put the destination group at end of groups */
+         if (Is_subgroup_mess(*m->serv_type) && m->max_groups > 0)
+         {
+            memcpy(m->groups[m->max_groups - 1], m->new_grps[*m->num_groups - 1], MAX_GROUP_NAME);
+         }
+         
+         *m->num_groups = -*m->num_groups;                                    /* report too short */
+         m->ret = GROUPS_TOO_SHORT;
       }
-    } else if (Is_reg_memb_mess(*m->serv_type)) {
-      membership_info m_info;
-      /* if its a regular membership message read the group id out of the msg */
-      assert(m->ret >= sizeof(group_id) + sizeof(int) + MAX_GROUP_NAME);    /* ensure received */
-      err = SP_scat_get_memb_info( scat, *m->serv_type, &m_info);
-
-      memcpy(&m->dst_gid, &m_info.gid, sizeof(group_id) );
-      assert(err == sizeof(group_id));                             /* already endian corrected */
-      DEBUG(std_stkfprintf(stderr, 0, "Recvd a SP reg memb mess: New SP gid is %d %d %d\n", 
-			   m->dst_gid.id[0], m->dst_gid.id[1], m->dst_gid.id[2]));
-    }
-
-    /* if I alloc'ed a msg buffer -> user probably requested DROP_RECV, need to copy from 
-       alloc'ed buffers into user's buffers and set m->ret to an appropriate value */
-    if (alloced_buffer) {
-      m->new_msg.elements[0].len = m->ret;                          /* record size of user msg */
-      err = scatp_begin(&user_pos, m->scat_mess);
-      assert(err == 0);
-      err = scatp_begin(&pos, &m->new_msg);
-      assert(err == 0);
-
-      /* perform copy from alloc'ed scat to user's scat */
-      err = scatp_cpy0(&user_pos, &pos, m->ret); 
-      assert(err >= 0 && err <= m->ret);                 /* shouldn't detect illegal scat here */
-
-      /* possible that removing appended data made the user's msg buffer big enough */
-      /* this also catches if I didn't really need to allocate a msg buffer (SP 3.12 bug) */
-      if (err != m->ret) {                              /* didn't all fit into user's msg buff */
-	DEBUG(std_stkfprintf(stderr, 0, "User msg buffer still too short!\n"));
-
-	/* 3.12: if !DROP_RECV, then report negative msg size correctly in endian_mismatch */
-	if ((m->orig_serv_type & DROP_RECV) == 0 && FL_SP_version() == (float) 3.12) {
-	  DEBUG(std_stkfprintf(stderr, 0, "Alloced msg buff: SP 3.12 DROP_RECV bug: error!\n"));
-	  success = -1;    /* non-zero success indicates an error that should be returned now! */
-	  *m->endian_mismatch = -m->ret;
-	}
-	m->ret = BUFFER_TOO_SHORT;
-      } else /* their buffer was big enough! */
-	DEBUG(std_stkfprintf(stderr, 0, "Unnecessary msg buff alloc! No BUFFER_TOO_SHORT!\n"));
-    }
-
-    /* if I alloc'ed groups buffers then user's buffers were too small and requested DROP_RECV */
-    if (alloced_groups) {
-      DEBUG(std_stkfprintf(stderr, 0, "Alloced groups buff, copying over: GROUPS_TOO_SHORT\n"));
-      memcpy(m->groups, m->new_grps, m->max_groups * MAX_GROUP_NAME);
-
-      /* if it is a subgroup msg and there is space put the destination group at end of groups */
-      if (Is_subgroup_mess(*m->serv_type) && m->max_groups > 0)
-	memcpy(m->groups[m->max_groups - 1], m->new_grps[*m->num_groups - 1], MAX_GROUP_NAME);
-
-      *m->num_groups = -*m->num_groups;                                    /* report too short */
-      m->ret = GROUPS_TOO_SHORT;
-    }
-  } else {
-    DEBUG(std_stkfprintf(stderr, 0, "Error from recv or re-recv that needs to be returned\n"));
-    success = -1;     /* non-zero success indicates an error that should be given to user now! */
-  }
-  DEBUG(std_stkfprintf(stderr, -1, "SP_int_receive: success %d, ret %d, mbox %d, serv 0x%X, "
-		       "mess_type %d\n", success, m->ret, m->mbox, *m->serv_type, 
-		       *m->mess_type));
-  return success;
+   }
+   else
+   {
+      DEBUG(std_stkfprintf(stderr, 0, "Error from recv or re-recv that needs to be returned\n"));
+      success = -1;     /* non-zero success indicates an error that should be given to user now! */
+   }
+   DEBUG(std_stkfprintf(stderr, -1, "SP_int_receive: success %d, ret %d, mbox %d, serv 0x%X, "
+                        "mess_type %d\n", success, m->ret, m->mbox, *m->serv_type, 
+                        *m->mess_type));
+   return success;
 }
 
 /* state machine code */
@@ -1583,72 +1683,77 @@ static void handle_recv_flush_ok(fl_conn *conn, fl_group *group, gc_recv_mess *m
   DEBUG(std_stkfprintf(stderr, 0, "curr_change(%p) ?= spc(%p) now has %lu floks, needs %d\n", 
 		       group->curr_change, spc, stdhash_size(&spc->flok_senders), 
 		       spc->memb_mess_recvd ? spc->memb_info->orig_num_membs : -1));
-  switch (group->vstate) {
-  case AGREE:
-    assert(group->curr_change != 0 && group->curr_change->memb_mess_recvd);
-    if (spc == group->curr_change &&
-	stdhash_size(&spc->flok_senders) == spc->memb_info->orig_num_membs) {
-      DEBUG(std_stkfprintf(stderr, 0, "Recvd last needed flok for curr change! INSTALL!\n"));
-      /* Received all the floks necessary to install the next fl view! */
-      install_new_view(conn, group, m);            /* deliver an appropriate fl membership msg */
-
-      DEBUG(std_stkfprintf(stderr, 0, "Going to state VERIFY!\n"));
-      group->vstate = VERIFY;                                            /* update group state */
-      if (group->mstate == JOINING)                                  
-	group->mstate = JOINED;                               /* has been installed in a group */
-
-      update_fl_view(group);                     /* update the view information for this group */
-
-      /* if no cascading membership: send a FLUSH_RECV, else deliver a FLUSH_REQ mess */
-      if (stddll_empty(&group->memb_queue)) {
-	int err;
-
-	DEBUG(std_stkfprintf(stderr, 0, "No cascading memberships -> sending FLUSH_RECV\n"));
-	err = SP_multicast(conn->mbox, FIFO_MESS, group->group, FLUSH_RECV_MESS,
-			   sizeof(group_id), (char*) &group->fl_view->gid);
-
-	if (err == CONNECTION_CLOSED || err == ILLEGAL_SESSION) {    /* immediate return error */
-	  DEBUG(std_stkfprintf(stderr, 0, "SP_multicast failure %ld\n", err));
-	  m->delivered = 1;                                   /* return to user immediately */
-	  m->ret = (int) err;
-	  break;
-	} else if (err != sizeof(group_id))
-	  stderr_output(STDERR_ABORT, 0,"(%s, %d): SP_multicast unexpected return %d\n", __FILE__, __LINE__, err);
-      } else {                            /* buffer a FLUSH_REQ mess, update curr_change, etc. */
-	DEBUG(std_stkfprintf(stderr, 0, "Cascading Memberships(%lu) to handle!\n", 
-			     stddll_size(&group->memb_queue)));
-	handle_next_memb_change(conn, group, m);
-      }
-      /* if new members have already died (after they sent their floks): deliver TRANS */
-      if ((int) stdhash_size(&group->fl_view->curr_membs) < group->fl_view->orig_num_membs) {
-	DEBUG(std_stkfprintf(stderr, 0, "New view members have already died! Deliver TRANS!\n"));
-	assert(!group->fl_view->in_trans_memb);
-	group->fl_view->in_trans_memb = 1;
-	deliver_trans_sig(conn, m, group->group);                               /* will buffer */
-      }
-      /* deliver any VULNERABLE messages that were pre-delivered */
-      stddll_begin(&group->mess_queue, &lit);
-      for (; !stddll_is_end(&group->mess_queue, &lit); stddll_it_next(&lit)) {
-	DEBUG(std_stkfprintf(stderr, 0, "Delivering a vulnerable SP pre-delivered msg!\n"));
-	deliver(conn, m, *(gc_buff_mess**) stddll_it_val(&lit), 1);          /* will buffer */
-      }
-      stddll_clear(&group->mess_queue);                    /* empty postponed vulnerable queue */
-    } else
-      assert(!spc->memb_mess_recvd || 
-	     (int) stdhash_size(&spc->flok_senders) < spc->memb_info->orig_num_membs);
-    break;
-  case AUTHORIZE: 
-    assert(group->curr_change != 0 && group->curr_change->memb_mess_recvd);
-    assert(!spc->memb_mess_recvd || 
-	   (int) stdhash_size(&spc->flok_senders) < spc->memb_info->orig_num_membs);
-    break;
-  case STEADY: case VERIFY: 
-    assert(group->curr_change == 0);
-    assert(!spc->memb_mess_recvd || 
-	   (int) stdhash_size(&spc->flok_senders) < spc->memb_info->orig_num_membs);
-    break;
-  default: stderr_output(STDERR_ABORT, 0,"(%s, %d): impossible vstate %d\n", __FILE__, __LINE__, group->vstate);
+  
+  switch (group->vstate)
+  {
+     case AGREE:
+        assert(group->curr_change != 0 && group->curr_change->memb_mess_recvd);
+        
+        if (spc == group->curr_change &&
+            stdhash_size(&spc->flok_senders) == (stdsize) spc->memb_info->orig_num_membs)
+        {
+           DEBUG(std_stkfprintf(stderr, 0, "Recvd last needed flok for curr change! INSTALL!\n"));
+           /* Received all the floks necessary to install the next fl view! */
+           install_new_view(conn, group, m);            /* deliver an appropriate fl membership msg */
+           
+           DEBUG(std_stkfprintf(stderr, 0, "Going to state VERIFY!\n"));
+           group->vstate = VERIFY;                                            /* update group state */
+           if (group->mstate == JOINING)                                  
+              group->mstate = JOINED;                               /* has been installed in a group */
+           
+           update_fl_view(group);                     /* update the view information for this group */
+           
+           /* if no cascading membership: send a FLUSH_RECV, else deliver a FLUSH_REQ mess */
+           if (stddll_empty(&group->memb_queue)) {
+              int err;
+              
+              DEBUG(std_stkfprintf(stderr, 0, "No cascading memberships -> sending FLUSH_RECV\n"));
+              err = SP_multicast(conn->mbox, FIFO_MESS, group->group, FLUSH_RECV_MESS,
+                                 sizeof(group_id), (char*) &group->fl_view->gid);
+              
+              if (err == CONNECTION_CLOSED || err == ILLEGAL_SESSION) {    /* immediate return error */
+                 DEBUG(std_stkfprintf(stderr, 0, "SP_multicast failure %ld\n", err));
+                 m->delivered = 1;                                   /* return to user immediately */
+                 m->ret = (int) err;
+                 break;
+              } else if (err != sizeof(group_id))
+                 stderr_output(STDERR_ABORT, 0,"(%s, %d): SP_multicast unexpected return %d\n", __FILE__, __LINE__, err);
+           } else {                            /* buffer a FLUSH_REQ mess, update curr_change, etc. */
+              DEBUG(std_stkfprintf(stderr, 0, "Cascading Memberships(%lu) to handle!\n", 
+                                   stddll_size(&group->memb_queue)));
+              handle_next_memb_change(conn, group, m);
+           }
+           /* if new members have already died (after they sent their floks): deliver TRANS */
+           if ((int) stdhash_size(&group->fl_view->curr_membs) < group->fl_view->orig_num_membs) {
+              DEBUG(std_stkfprintf(stderr, 0, "New view members have already died! Deliver TRANS!\n"));
+              assert(!group->fl_view->in_trans_memb);
+              group->fl_view->in_trans_memb = 1;
+              deliver_trans_sig(conn, m, group->group);                               /* will buffer */
+           }
+           /* deliver any VULNERABLE messages that were pre-delivered */
+           stddll_begin(&group->mess_queue, &lit);
+           for (; !stddll_is_end(&group->mess_queue, &lit); stddll_it_next(&lit)) {
+              DEBUG(std_stkfprintf(stderr, 0, "Delivering a vulnerable SP pre-delivered msg!\n"));
+              deliver(conn, m, *(gc_buff_mess**) stddll_it_val(&lit), 1);          /* will buffer */
+           }
+           stddll_clear(&group->mess_queue);                    /* empty postponed vulnerable queue */
+        } else
+           assert(!spc->memb_mess_recvd || 
+                  (int) stdhash_size(&spc->flok_senders) < spc->memb_info->orig_num_membs);
+        break;
+     case AUTHORIZE: 
+        assert(group->curr_change != 0 && group->curr_change->memb_mess_recvd);
+        assert(!spc->memb_mess_recvd || 
+               (int) stdhash_size(&spc->flok_senders) < spc->memb_info->orig_num_membs);
+        break;
+     case STEADY: case VERIFY: 
+        assert(group->curr_change == 0);
+        assert(!spc->memb_mess_recvd || 
+               (int) stdhash_size(&spc->flok_senders) < spc->memb_info->orig_num_membs);
+        break;
+     default: stderr_output(STDERR_ABORT, 0,"(%s, %d): impossible vstate %d\n", __FILE__, __LINE__, group->vstate);
   }
+  
   DEBUG(std_stkfprintf(stderr, -1, "handle_recv_flush_ok: mbox(%d, %p), group('%s', %p), %s\n",
 		       conn->mbox, conn, group->group, group, state_str(group->vstate)));
 }
@@ -1697,46 +1802,64 @@ static void handle_recv_flush_recv(fl_conn *conn, fl_group *group, gc_recv_mess 
 		       conn->mbox, conn, group->group, group, state_str(group->vstate)));
 }
 
-static void handle_recv_reg_mess(fl_conn *conn, fl_group *group, gc_recv_mess *um) {
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void handle_recv_reg_mess(fl_conn *conn, fl_group *group, gc_recv_mess *um)
+{
+   
   stdit hit;
   gc_buff_mess *bm;
 
   DEBUG(std_stkfprintf(stderr, 1, "handle_recv_reg_mess: mbox(%d, %p), group('%s', %p), %s\n",
 		       conn->mbox, conn, group->group, group, state_str(group->vstate)));
-  switch (group->vstate) {
-  case AGREE:
-    assert(group->curr_change != 0 && group->curr_change->memb_mess_recvd);
-    /* if vulnerable message meant for the next membership from a member of the next one */
-    if (um->vulnerable) {
-      DEBUG(std_stkfprintf(stderr, 0, "Recvd a vulnerable msg!\n"));
-      if (SP_equal_group_ids(um->dst_gid, group->curr_change->memb_info->gid)) {
-	DEBUG(std_stkfprintf(stderr, 0, "Addressed to my next FL vid!\n"));
-	if (!stdhash_is_end(&group->curr_change->memb_info->curr_membs, stdhash_find(&group->curr_change->memb_info->curr_membs, 
-					    &hit, &um->sender))) {
-	  DEBUG(std_stkfprintf(stderr, 0, "Recvd a vuln msg that needs to be POSTPONED!\n"));
-	  if ((bm = (gc_buff_mess*) malloc(sizeof(gc_buff_mess))) == 0)
-	    stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%u)\n", __FILE__, __LINE__, sizeof(gc_buff_mess));
-	  
-	  userm_to_buffm(bm, um);
-	  stddll_push_back(&group->mess_queue, &bm);
-	  break;
-	} else
-	  stderr_output(STDERR_ABORT, 0,"'%s' Not in my next FL curr membs!\n", um->sender);
-      } else
-	DEBUG(std_stkfprintf(stderr, 0, "Vuln msg not to next FL vid: should ignore below\n"));
-    } /* ELSE FALL THROUGH TO NORMAL CASES, BELOW (other case statements)!!!! */
-  case STEADY: case AUTHORIZE: case VERIFY:
-    /* if the message is from a current flush member then deliver it */
-    if (!stdhash_is_end(&group->fl_view->curr_membs, stdhash_find(&group->fl_view->curr_membs, &hit, &um->sender))) {
-      DEBUG(std_stkfprintf(stderr, 0, "Deliver reg mess from group memb '%s'\n", um->sender));
-      deliver(conn, um, 0, 0);
-    } else
-      DEBUG(std_stkfprintf(stderr, 0, "Ignore reg mess from non group memb '%s'\n", um->sender));
-    break;
-  default: stderr_output(STDERR_ABORT, 0,"(%s, %d): impossible vstate %d\n", __FILE__, __LINE__, group->vstate);
+  
+  switch (group->vstate)
+  {
+     
+     case AGREE:
+        assert(group->curr_change != 0 && group->curr_change->memb_mess_recvd);
+        // if vulnerable message meant for the next membership from a member of the next one
+        if (um->vulnerable)
+        {
+           DEBUG(std_stkfprintf(stderr, 0, "Recvd a vulnerable msg!\n"));
+           if (SP_equal_group_ids(um->dst_gid, group->curr_change->memb_info->gid))
+           {
+              DEBUG(std_stkfprintf(stderr, 0, "Addressed to my next FL vid!\n"));
+              if (!stdhash_is_end(&group->curr_change->memb_info->curr_membs,
+                                  stdhash_find(&group->curr_change->memb_info->curr_membs, 
+                                               &hit, &um->sender)))
+              {
+                 DEBUG(std_stkfprintf(stderr, 0, "Recvd a vuln msg that needs to be POSTPONED!\n"));
+                 if ((bm = (gc_buff_mess*) malloc(sizeof(gc_buff_mess))) == 0)
+                    stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%u)\n", __FILE__, __LINE__, sizeof(gc_buff_mess));
+                 
+                 userm_to_buffm(bm, um);
+                 stddll_push_back(&group->mess_queue, &bm);
+                 break;
+              } else
+                 stderr_output(STDERR_ABORT, 0,"'%s' Not in my next FL curr membs!\n", um->sender);
+           } else
+              DEBUG(std_stkfprintf(stderr, 0, "Vuln msg not to next FL vid: should ignore below\n"));
+        } /* fall trough */ // ELSE FALL THROUGH TO NORMAL CASES, BELOW (other case statements)!!!!
+
+// Compiler need this
+#if defined(__GNUC__) && __GNUC__ >= 7
+        __attribute__((fallthrough));
+#endif
+        
+     case STEADY: case AUTHORIZE: case VERIFY:
+        /* if the message is from a current flush member then deliver it */
+        if (!stdhash_is_end(&group->fl_view->curr_membs, stdhash_find(&group->fl_view->curr_membs, &hit, &um->sender))) {
+           DEBUG(std_stkfprintf(stderr, 0, "Deliver reg mess from group memb '%s'\n", um->sender));
+           deliver(conn, um, 0, 0);
+        } else
+           DEBUG(std_stkfprintf(stderr, 0, "Ignore reg mess from non group memb '%s'\n", um->sender));
+        break;
+     default: stderr_output(STDERR_ABORT, 0,"(%s, %d): impossible vstate %d\n", __FILE__, __LINE__, group->vstate);
   }
   DEBUG(std_stkfprintf(stderr, -1, "handle_recv_reg_mess: mbox(%d, %p), group('%s', %p), %s\n",
-		       conn->mbox, conn, group->group, group, state_str(group->vstate)));
+                       conn->mbox, conn, group->group, group, state_str(group->vstate)));
 }
 
 static void 
@@ -1976,13 +2099,19 @@ static void update_fl_view(fl_group *group) {
 		       group->fl_view->gid.id[1], group->fl_view->gid.id[2]));
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static char*
-determine_leavers(stdhash *leavers, view *last_sp_view, gc_recv_mess *m) {
+determine_leavers(stdhash *leavers, view *last_sp_view, gc_recv_mess *m)
+{
   char     *ret = 0;
   int      i;
   long     err;
   stduint32   num_membs;
+  stdsize    old_leavers_size;
   membership_info       m_info;
+  
   char    (*members)[MAX_GROUP_NAME];
 
   DEBUG(std_stkfprintf(stderr, 1, "determine_leavers: old gid %d %d %d -> new gid %d %d %d\n", 
@@ -2009,32 +2138,54 @@ determine_leavers(stdhash *leavers, view *last_sp_view, gc_recv_mess *m) {
     ret[MAX_GROUP_NAME - 1] = 0;                                  /* ensure null termination */
 
     DEBUG(std_stkfprintf(stderr, 0, "delta memb: '%s'\n", ret));
-    if (!Is_caused_join_mess(*m->serv_type)) {                   /* insert leaver into leavers */
+    if (!Is_caused_join_mess(*m->serv_type))  // insert leaver into leavers
+    {  
       DEBUG(std_stkfprintf(stderr, 0, "Wasn't a JOIN: adding delta to leavers\n"));
       stdhash_insert(leavers, 0, &ret, 0);
     }
 
-  } else {
+  }
+  else
+  {
+     
     DEBUG(std_stkfprintf(stderr, 0, "Caused by network! "));
     stdhash_copy_construct(leavers, &last_sp_view->orig_membs);     /* copy last SP membership */
 
     DEBUG(std_stkfprintf(stderr, 0, "Num_membs %u\n", num_membs));
     if ((members = (char (*)[MAX_GROUP_NAME])malloc(num_membs * sizeof( *members ) ) ) == 0)
+    {
       stderr_output(STDERR_ABORT, 0,"(%s, %d): malloc(%d)\n", __FILE__, __LINE__, num_membs * MAX_GROUP_NAME);
+    }
+    
     err = SP_scat_get_vs_set_members( m->scat_mess, &m_info.my_vs_set, members, num_membs);
     assert(err == num_membs);
-    for (i = 0; i < (int) num_membs; ++i) {        /* remove members that came with me: leaves who left */
+    
+    for (i = 0; i < (int) num_membs; ++i)  // remove members that came with me: leaves who left 
+    {  
       members[i][MAX_GROUP_NAME -1] = 0;
-      err = stdhash_size(leavers);
+
+      
+      // err = stdhash_size(leavers);
+      // stdhash_erase_key(leavers, &(members[i][0]));
+      // assert(err == stdhash_size(leavers) + 1);
+      
+      old_leavers_size = stdhash_size(leavers);
       stdhash_erase_key(leavers, &(members[i][0]));
-      assert(err == stdhash_size(leavers) + 1);
+      assert(old_leavers_size == stdhash_size(leavers) + 1);
+      
     }
   }
+  
   DEBUG(std_stkfprintf(stderr, -1, "determine_leavers: delta('%s', %p), leavers size is %lu\n",
 		       ret != 0 ? ret : "", ret, stdhash_size(leavers)));
-  return ret;                                               /* strndup'ed delta member or null */
+  
+  return ret;                                               // strndup'ed delta member or null
+
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static void age_and_invalidate_pmembs(fl_group *group) {
   sp_memb_change *spc;
   stdit hit;
@@ -2137,21 +2288,34 @@ static void get_scat_info(const gc_recv_mess *m, int *mess_len,
   }
 }
 
-/* is a group name a private group name or not? */
-static int is_private_group(const char group[MAX_GROUP_NAME]) {
+//----------------------------------------------------------------------
+// is a group name a private group name or not?
+//----------------------------------------------------------------------
+//static int is_private_group(const char group[MAX_GROUP_NAME])
+static int is_private_group(const char *group)
+{
+   
   const char *end = group + MAX_GROUP_NAME;
 
   while (group != end && *group != 0 && *group != '#')
+  {
     ++group;
+  }
   
   return group != end && *group != 0;
+
 }
 
-/* check if a msg wrt a particular group is vulnerable or not */
-static int is_vulnerable_mess(const fl_group *group, service serv_type) {
-  /* need to include AUTHORIZE state because of coming here directly from the VERIFY state */
-  return ((group->vstate == AUTHORIZE || group->vstate == VERIFY) &&
-	  (serv_type & (UNRELIABLE_MESS | RELIABLE_MESS | FIFO_MESS)) != 0);
+//----------------------------------------------------------------------
+// check if a msg wrt a particular group is vulnerable or not
+//----------------------------------------------------------------------
+static int is_vulnerable_mess(const fl_group *group, service serv_type)
+{
+
+   // need to include AUTHORIZE state because of coming here directly from the VERIFY state
+   return ((group->vstate == AUTHORIZE || group->vstate == VERIFY) &&
+           (serv_type & (UNRELIABLE_MESS | RELIABLE_MESS | FIFO_MESS)) != 0);
+
 }
 
 #ifndef NDEBUG

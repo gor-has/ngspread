@@ -133,27 +133,32 @@ static size_t sizeobj(int32u objtype)
  * Query Functions
  ************************/
 
-unsigned int Mem_total_bytes() 
+unsigned int Mem_total_bytes(void) 
 {
         return(Mem_Bytes_Allocated);
 }
-unsigned int Mem_total_inuse()
+
+unsigned int Mem_total_inuse(void)
 {
         return( Mem_Obj_Inuse );
 }
-unsigned int Mem_total_obj()              
+
+unsigned int Mem_total_obj(void)              
 {
         return( Mem_Obj_Allocated );
 }
-unsigned int Mem_total_max_bytes() 
+
+unsigned int Mem_total_max_bytes(void) 
 {
         return(Mem_Max_Bytes);
 }
-unsigned int Mem_total_max_inuse()
+
+unsigned int Mem_total_max_inuse(void)
 {
         return( Mem_Max_Obj_Inuse );
 }
-unsigned int Mem_total_max_obj()              
+
+unsigned int Mem_total_max_obj(void)              
 {
         return( Mem_Max_Objects );
 }
