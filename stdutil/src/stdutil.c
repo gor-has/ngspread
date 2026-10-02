@@ -503,19 +503,22 @@ STDINLINE void stdrand64_dseed(stduint32 x[3], stduint64 seed)
  * backward mappings correct.
  ***********************************************************************************************/
 
-/************************************************************************************************
- * stdhton16: Rearranges the two bytes at which 'io' points from host
- * to network byte ordering.
- ***********************************************************************************************/
-
+//----------------------------------------------------------------------
+// stdhton16: Rearranges the two bytes at which 'io' points from host
+// to network byte ordering.
+//----------------------------------------------------------------------
 STDINLINE void stdhton16(void *io)
 {
+
+   (void) io;
+   
 #if (STDENDIAN16_SWAP == 1)
   stduint8 * ptr = (stduint8*) io;
   stduint8   t;
 
   STDSWAP(ptr[0], ptr[1], t);
 #endif
+
 }
 
 /************************************************************************************************
@@ -710,13 +713,15 @@ STDINLINE stdcode stdhton_n(void *io, size_t n)
   return STDESUCCESS;
 }
 
-/************************************************************************************************
- * stdntoh16: Rearranges the two bytes at which 'io' points from
- * network to host byte ordering.
- ***********************************************************************************************/
-
+//----------------------------------------------------------------------
+// stdntoh16: Rearranges the two bytes at which 'io' points from
+// network to host byte ordering.
+//----------------------------------------------------------------------
 STDINLINE void stdntoh16(void *io)
 {
+
+   (void) io;
+   
 #if (STDENDIAN16_SWAP == 1)
   stduint8 * ptr = (stduint8*) io;
   stduint8   t;

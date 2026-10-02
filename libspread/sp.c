@@ -120,7 +120,8 @@ struct auth_method_info {
 #  define DEFAULT_SPREAD_CONNECTION      QQ(DEFAULT_SPREAD_PORT)
 
 
-static  int     sp_null_authenticate(int, void *);
+static  int sp_null_authenticate(int, void *);
+
 static  struct auth_method_info Auth_Methods[MAX_AUTH_METHODS] = { {"NULL", sp_null_authenticate, NULL} };
 static  int     Num_Reg_Auth_Methods = 1;
 
@@ -533,14 +534,22 @@ static int send_n_nointr_nb( int s, char *b, int n, const sp_time *abs_time_out 
     return n;
 }  
 
-/* This is a null authenticate method that does nothing */
-
-static  int     sp_null_authenticate(int fd, void * auth_data)
+//----------------------------------------------------------------------
+// This is a null authenticate method that does nothing 
+//----------------------------------------------------------------------
+static int sp_null_authenticate(int fd, void * auth_data)
 {
-        /* return success */
-        return(1);
+    (void) fd;
+    (void) auth_data;
+   
+    // return success
+    return(1);
 }
-static  int     valid_auth_method(char *auth_method, char *auth_list, int auth_list_len)
+
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static int valid_auth_method(char *auth_method, char *auth_list, int auth_list_len)
 {
         char *cur_p, *next_p;
         char list_str[MAX_AUTH_NAME * MAX_AUTH_METHODS];
@@ -2385,16 +2394,35 @@ int     SP_scat_get_vs_set_members( const scatter *memb_mess_scat,
 }
 
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int	SP_query_groups( mailbox mbox, int max_groups, char *groups[MAX_GROUP_NAME] )
 {
+   
+    (void) mbox;
+    (void) max_groups;
+    (void) groups;
+    
 	return( -1 );
 }
 
-int	SP_query_members( mailbox mbox, char *group, int max_members, char *members[MAX_GROUP_NAME] )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int	SP_query_members( mailbox mbox, char *group, int max_members, char *
+                      members[MAX_GROUP_NAME] )
 {
+    (void) mbox;
+    (void) group;
+    (void) max_members;
+    (void) members;
 	return( -1 );
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void	SP_kill( mailbox mbox )
 {
 	int	ses;

@@ -257,60 +257,71 @@ STDINLINE static stdbool stdskl_low_find_left(const stdskl *l, const void *key,
   return (curr != l->end_node && cmp == 0);
 }
 
-/************************************************************************************************
- * stdskl_low_link_right: Link 'node' into entries greater than or
- * equal to 'ins_pos' in 'l.'
- ***********************************************************************************************/
-
-STDINLINE static void stdskl_low_link_right(const stdskl *l, stdskl_node *ins_pos, stdskl_node *node)
+//----------------------------------------------------------------------
+// stdskl_low_link_right: Link 'node' into entries greater than or
+// equal to 'ins_pos' in 'l.'
+//----------------------------------------------------------------------
+STDINLINE static void
+stdskl_low_link_right(const stdskl *l, stdskl_node *ins_pos, stdskl_node *node)
 {
-  stdskl_node * next   = ins_pos;
-  stdint8       height = node->height;
-  stdint8       lvl    = 0;
 
-  node->nexts[0] = next;
-  next->prevs[0] = node;
+   (void) l;
+   stdskl_node * next   = ins_pos;
+   stdint8       height = node->height;
+   stdint8       lvl    = 0;
+   
+   node->nexts[0] = next;
+   next->prevs[0] = node;
+   
+   while (lvl != height)
+   {
+      
+      // if we've maxed out next's height, then find a later, taller node on this lvl
+      while (lvl == next->height)   // NOTE: node->height <= end_node->height -> lvl < end_node->height here
+      {  
+         next = next->nexts[lvl];   // so we can't erroneously wrap around past sentinel end node here 
+      }
+      
+      ++lvl;
+      node->nexts[lvl] = next;
+      next->prevs[lvl] = node;
+   }
 
-  while (lvl != height) {
-
-    /* if we've maxed out next's height, then find a later, taller node on this lvl */
-
-    while (lvl == next->height) {  /* NOTE: node->height <= end_node->height -> lvl < end_node->height here */
-      next = next->nexts[lvl];     /* so we can't erroneously wrap around past sentinel end node here */
-    }
-
-    ++lvl;
-    node->nexts[lvl] = next;
-    next->prevs[lvl] = node;
-  }
 }
 
-/************************************************************************************************
- * stdskl_low_link_left: Link in 'node' to entries less than 'ins_pos'
- * in 'l.'
- ***********************************************************************************************/
 
-STDINLINE static void stdskl_low_link_left(const stdskl *l, stdskl_node *ins_pos, stdskl_node *node)
+//----------------------------------------------------------------------
+// stdskl_low_link_left: Link in 'node' to entries less than 'ins_pos'
+// in 'l.'
+//----------------------------------------------------------------------
+STDINLINE static void
+stdskl_low_link_left(const stdskl *l, stdskl_node *ins_pos, stdskl_node *node)
 {
-  stdskl_node * prev   = ins_pos->prevs[0];  /* NOTE: this is why we must link_left b4 link_right in insert! */
-  stdint8       height = node->height;
-  stdint8       lvl    = 0;
 
-  node->prevs[0] = prev;
-  prev->nexts[0] = node;
+   (void) l;
+   stdskl_node * prev   = ins_pos->prevs[0];  /* NOTE: this is why we must link_left b4 link_right in insert! */
+   stdint8       height = node->height;
+   stdint8       lvl    = 0;
+   
+   node->prevs[0] = prev;
+   prev->nexts[0] = node;
 
-  while (lvl != height) {
+   while (lvl != height)
+   {
 
-    /* if we've maxed out prev's height, then find an earlier, taller node on this lvl */
-
-    while (lvl == prev->height) {  /* NOTE: node->height <= end_node->height -> lvl < end_node->height here */
-      prev = prev->prevs[lvl];     /* so we can't erroneously wrap around past sentinel end node here */
-    }
+      // if we've maxed out prev's height, then find an earlier, taller node on this lvl */
+      
+      while (lvl == prev->height) // NOTE: node->height <= end_node->height -> lvl < end_node->height here 
+      {  
+         prev = prev->prevs[lvl]; // so we can't erroneously wrap around past sentinel end node here
+      }
 
     ++lvl;
     node->prevs[lvl] = prev;
     prev->nexts[lvl] = node;
+    
   }
+
 }
 
 /************************************************************************************************

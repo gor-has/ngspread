@@ -466,15 +466,16 @@ STDINLINE stdbool stddll_empty(const stddll *l)
   return l->size == 0;
 }
 
-/************************************************************************************************
- * stddll_max_size: Return the theoretical maximum number of elements
- * 'l' could possibly hold.
- ***********************************************************************************************/
-
+//----------------------------------------------------------------------
+//  stddll_max_size: Return the theoretical maximum number of elements
+//  'l' could possibly hold.
+//----------------------------------------------------------------------
 STDINLINE stdsize stddll_max_size(const stddll *l) 
 {
+   
   STDSAFETY_CHECK(STDDLL_IS_LEGAL(l));
-
+  (void) l;
+  
   return STDSIZE_MAX;
 }
 

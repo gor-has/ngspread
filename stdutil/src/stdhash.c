@@ -960,14 +960,15 @@ STDINLINE stdsize stdhash_low_thresh(const stdhash *h)
   return ((h->cap_min1 + 1) >> 3);  /* keep load factor > 12.5% */
 }
 
-/************************************************************************************************
- * stdhash_max_size: Return the theoretical max number of elements a hash can contain.
- ***********************************************************************************************/
-
+//----------------------------------------------------------------------
+// stdhash_max_size: Return the theoretical max number of elements a hash can contain.
+//----------------------------------------------------------------------
 STDINLINE stdsize stdhash_max_size(const stdhash *h) 
-{ 
+{
+   
   STDSAFETY_CHECK(STDHASH_IS_LEGAL(h));
-
+  (void) h;
+  
   return (STDSIZE_MAX >> 2);
 }
 
