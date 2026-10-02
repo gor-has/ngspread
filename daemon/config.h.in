@@ -3,9 +3,6 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-/* Building on a Windows OS Platform */
-#undef ARCH_PC_WIN95
-
 /* Platform supports sendmsg scatter/gather using accrights structure */
 #undef ARCH_SCATTER_ACCRIGHTS
 

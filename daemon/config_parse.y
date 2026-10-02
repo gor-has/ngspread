@@ -41,7 +41,6 @@
 
 #include <stdutil/stdutil.h>
 
-#ifndef ARCH_PC_WIN95
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -49,10 +48,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/param.h>
-
-#else /* ARCH_PC_WIN95 */
-#include <winsock2.h>
-#endif /* ARCH_PC_WIN95 */
 
 #include "spu_alarm.h"
 #include "configuration.h"

@@ -37,16 +37,10 @@
 #ifndef	INC_SESS_BODY
 #define	INC_SESS_BODY
 
-#ifndef ARCH_PC_WIN95
 
 #include <sys/time.h>
 #include <sys/types.h>
 
-#else	/* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-
-#endif	/* ARCH_PC_WIN95 */
 
 #include "arch.h"
 #include "protocol.h"

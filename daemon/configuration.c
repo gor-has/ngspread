@@ -35,19 +35,11 @@
 
 #include "arch.h"
 
-#ifndef	ARCH_PC_WIN95
-
 #include <netdb.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-
-#else 	/* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-
-#endif	/* ARCH_PC_WIN95 */
 
 #include <stdio.h>
 #include <stdlib.h>

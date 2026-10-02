@@ -38,18 +38,12 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#ifndef ARCH_PC_WIN95
-#  include <sys/types.h>
-#  include <sys/socket.h>
-#  include <netdb.h>
-#  include <netinet/in.h>
-#  include <arpa/inet.h>
-#  include <net/if.h>
-#else
-#  include <winsock2.h>
-#  include <ws2tcpip.h>
-#  define YY_NO_UNISTD_H  /* Do not include unistd.h header in windows compiles */
-#endif
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <net/if.h>
 
 #include "conf_body.h"
 #include "y.tab.h"

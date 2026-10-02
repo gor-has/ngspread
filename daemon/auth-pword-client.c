@@ -45,20 +45,15 @@
 #include <stdio.h>
 #include <errno.h>
 
-#ifndef ARCH_PC_WIN95
-
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#else   /* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-
-#endif  /* ARCH_PC_WIN95 */
-
 #include "auth-pword-client.h"
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int pword_authenticate(int fd, void *data_p)
 {
     struct user_password *user_p;
@@ -67,7 +62,7 @@ int pword_authenticate(int fd, void *data_p)
 
     user_p = data_p;
 
-    /* Send username and password */
+    // Send username and password 
     while(((ret = send( fd, user_p->username, MAX_PWORD_USERNAME, 0 )) == -1) && ((sock_errno == EINTR) || (sock_errno == EAGAIN) || (sock_errno == EWOULDBLOCK)))
         ;
     if( ret != (MAX_PWORD_USERNAME) )

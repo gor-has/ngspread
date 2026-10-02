@@ -59,7 +59,6 @@
 
 #else	/* _REENTRANT */
 
-#ifndef ARCH_PC_WIN95
 #include <pthread.h>
 
 #define MUTEX_STATIC_INIT 	PTHREAD_MUTEX_INITIALIZER
@@ -80,60 +79,6 @@
 #endif
 
 #define Once_execute( control, initializer ) pthread_once( (control), (initializer) )
-
-#else	/* ARCH_PC_WIN95 */
-
-#include <process.h>
-
-#define MUTEX_STATIC_INIT 	{ 0 }
-#define ONCE_STATIC_INIT        { 0, 0 }
-
-#define mutex_type 		CRITICAL_SECTION
-#define once_type               ONCE_CONTROL
-
-typedef struct 
-{
-  volatile int    initialized;
-  volatile HANDLE mutex;
-  
-} ONCE_CONTROL;
-
-#define Mutex_init( mutex )	InitializeCriticalSection( mutex )
-#define Mutex_lock( mutex )	EnterCriticalSection( mutex )
-#define Mutex_unlock( mutex )	LeaveCriticalSection( mutex )
-#define Mutex_trylock( mutex )	!TryEnterCriticalSection( mutex )
-
-/* Not needed? for Windows */
-#define Mutex_atfork( prepare, parent, child )
-
-#define Once_execute( control, initializer )\
-    if( !(control)->initialized )\
-    {\
-        HANDLE myMutex = CreateMutex( NULL, 0, NULL );\
-        if( myMutex == INVALID_HANDLE_VALUE )\
-        {\
-            int error = GetLastError();\
-            Alarm( EXIT, "Once_execute: Error creating mutex: %d\n", error );\
-        }\
-        if( InterlockedCompareExchangePointer( &(control)->mutex, myMutex, 0 ) )\
-        {\
-            CloseHandle( myMutex );\
-        }\
-        \
-        if( WaitForSingleObject( (control)->mutex, INFINITE ) == WAIT_FAILED )\
-        {\
-            int error = GetLastError();\
-            Alarm( EXIT, "Once_execute: Error locking mutex: %d\n", error );\
-        }\
-        if( !(control)->initialized )\
-        {\
-            (control)->initialized = 1;\
-            (initializer)();\
-        }\
-        ReleaseMutex( (control)->mutex );\
-    }
-
-#endif /* ARCH_PC_WIN95 */
 
 
 #endif /* _REENTRANT */

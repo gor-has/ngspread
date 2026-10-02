@@ -317,7 +317,7 @@ void    Net_init()
      * desired on Windows when done this way.
      */
 
-#ifndef ARCH_PC_WIN95
+
     /* NOTE: for backwards compatability with old configurations we don't do this for singleton segments */
     
     /* TODO: figure out a better way because not setting up this
@@ -355,10 +355,13 @@ void    Net_init()
             --Num_bcast_channels;  /* NOTE: counteract loop increment */
           }
           else
-            Alarmp(SPLOG_INFO, NETWORK, "Net_init: explicit: extras: joined multicast group %s on channel %d\n", SPU_ADDR_NTOP(&Bcast_addrs[i]), (int) Bcast_channel[Num_bcast_channels]);
+          {
+             Alarmp(SPLOG_INFO, NETWORK, "Net_init: explicit: extras: joined multicast group %s on channel %d\n",
+                    SPU_ADDR_NTOP(&Bcast_addrs[i]), (int) Bcast_channel[Num_bcast_channels]);
+          }
         }
       }
-#endif    
+    
   }
 
   /* NOTE: currently we don't use NO_LOOP bc another daemon in our segment might be on the same machine but bound to a different interface */

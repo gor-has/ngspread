@@ -41,8 +41,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#ifndef ARCH_PC_WIN95
-
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -58,13 +56,6 @@
 #include <sys/un.h>
 #include <signal.h>
 #include <sys/ioctl.h>
-
-#else   /* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-#define	ioctl 	ioctlsocket
-
-#endif  /* ARCH_PC_WIN95 */
 
 #include "spread_params.h"
 #include "net_types.h"
@@ -335,23 +326,22 @@ void	Sess_init()
 	mailbox			mbox;
         port_reuse              reuse = Conf_get_port_reuse_type();
 
-#ifndef ARCH_PC_WIN95
+
 
 	struct	sockaddr_un	unix_addr;
 	char		       *name = unix_addr.sun_path;
 
 	signal( SIGPIPE, SIG_IGN );
+    
 
-#endif	/* ARCH_PC_WIN95 */
-
-        ret = Mem_init_object( MESSAGE_LINK, "message_link", sizeof(message_link), 1000, 0);
-        if (ret < 0)
-                Alarm(EXIT, "Sess_init: Failure to Initialize MESSAGE_LINK memory objects\n");
-
-        ret = Mem_init_object( DOWN_LINK, "down_link", sizeof(down_link), 200, 0);
-        if (ret < 0)
-                Alarm(EXIT, "Sess_Init: Failure to Initialize DOWN_LINK memory objects\n");
-
+    ret = Mem_init_object( MESSAGE_LINK, "message_link", sizeof(message_link), 1000, 0);
+    if (ret < 0)
+       Alarm(EXIT, "Sess_init: Failure to Initialize MESSAGE_LINK memory objects\n");
+    
+    ret = Mem_init_object( DOWN_LINK, "down_link", sizeof(down_link), 200, 0);
+    if (ret < 0)
+       Alarm(EXIT, "Sess_Init: Failure to Initialize DOWN_LINK memory objects\n");
+    
 	Sess_init_sessions();
 	
 	Num_sessions = 0;
@@ -409,7 +399,7 @@ void	Sess_init()
                 }
         }
 
-#ifndef ARCH_PC_WIN95
+
 
 	/* Initiation of the UNIX socket */
 
@@ -434,7 +424,7 @@ void	Sess_init()
 	Accept_unix_mbox = mbox;
         Alarm( SESSION, "Sess_init: UNIX went ok on mailbox %d\n", mbox );
 
-#endif	/* ARCH_PC_WIN95 */
+
 
 	Sess_attach_accept();
 
@@ -447,13 +437,13 @@ void	Sess_init()
 
 void    Sess_fini(void)
 {
-#ifndef ARCH_PC_WIN95
+
         char name[256];
 
         close( Accept_unix_mbox );
         snprintf( name, sizeof(name), "%s/%u", SP_UNIX_SOCKET, (unsigned) Sess_port );
         unlink( name );
-#endif
+
 }
 
 void    Sess_signal_conf_reload(void)
@@ -511,11 +501,11 @@ static	void	Sess_attach_accept()
                 E_attach_fd( Accept_inet_mbox[i], READ_FD,   Sess_accept, 0, NULL, LOW_PRIORITY );
                 E_attach_fd( Accept_inet_mbox[i], EXCEPT_FD, Sess_accept, 0, NULL, LOW_PRIORITY );
         }
-#ifndef ARCH_PC_WIN95
+
 
 	E_attach_fd( Accept_unix_mbox, READ_FD, Sess_accept, 1, NULL, LOW_PRIORITY );
 
-#endif	/* ARCH_PC_WIN95 */
+
 }
 
 static	void	Sess_detach_accept()
@@ -527,11 +517,10 @@ static	void	Sess_detach_accept()
                 E_detach_fd( Accept_inet_mbox[i], READ_FD );
                 E_detach_fd( Accept_inet_mbox[i], EXCEPT_FD );
         }
-#ifndef ARCH_PC_WIN95
+
 
 	E_detach_fd( Accept_unix_mbox, READ_FD );
 
-#endif	/* ARCH_PC_WIN95 */
 
 }
 

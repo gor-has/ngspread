@@ -46,20 +46,9 @@
 
 #ifdef _REENTRANT
 
-#ifndef 	ARCH_PC_WIN95
-
 #include        <sys/types.h>
 #include        <sys/socket.h>
 #include 	<pthread.h>
-
-#else		/* ARCH_PC_WIN95 */
-
-#include        <windows.h>
-#include        <winsock2.h>
-#define ioctl   ioctlsocket
-WSADATA		WSAData;
-
-#endif		/* ARCH_PC_WIN95 */
 
 #endif /* _REENTRANT */
 
@@ -120,21 +109,13 @@ static  void    Reload_Conf();
 
 #ifdef	_REENTRANT
 
-#ifndef     ARCH_PC_WIN95
+
     static      pthread_t	Read_thread;
     static      pthread_t	Status_thread;
     static      pthread_t	Partition_thread;
     static      void            *Read_thread_routine();
     static      void            *Status_send_thread_routine();
     static      void            *Partition_send_thread_routine();
-#else		/* ARCH_PC_WIN95 */
-    static	HANDLE		Read_thread;
-    static	HANDLE		Status_thread;
-    static	HANDLE		Partition_thread;
-    static	DWORD WINAPI    Read_thread_routine( void *);
-    static	DWORD WINAPI    Status_send_thread_routine( void *);
-    static	DWORD WINAPI    Partition_send_thread_routine( void *);
-#endif		/* ARCH_PC_WIN95 */
 
 static	mutex_type	Status_mutex;
 static  mutex_type      Partition_mutex;
@@ -204,11 +185,6 @@ int main( int argc, char *argv[] )
 		(int)SP_MAJOR_VERSION, (int)SP_MINOR_VERSION, (int)SP_PATCH_VERSION, Spread_build_date );
 	Alarmp( SPLOG_PRINT, SYSTEM, "\\===========================================================================/\n");
 
-#ifdef ARCH_PC_WIN95
-        ret = WSAStartup( MAKEWORD(2,0), &WSAData );
-        if( ret != 0 )
-            Alarm( EXIT, "sptmonitor: main: winsock initialization error %d\n", ret );
-#endif	/* ARCH_PC_WIN95 */
 
 	Usage( argc, argv );
         
@@ -250,15 +226,10 @@ int main( int argc, char *argv[] )
 
 #ifdef	_REENTRANT
 
-#ifndef	        ARCH_PC_WIN95
+
 	ret = pthread_create( &Read_thread, NULL, Read_thread_routine, 0 );
 	ret = pthread_create( &Status_thread, NULL, Status_send_thread_routine, 0 );
 	ret = pthread_create( &Partition_thread, NULL, Partition_send_thread_routine, 0 );
-#else		/* ARCH_PC_WIN95 */
-	Read_thread = CreateThread( NULL, 0, Read_thread_routine, NULL, 0, &ret );
-	Status_thread = CreateThread( NULL, 0, Status_send_thread_routine, NULL, 0, &ret );
-	Partition_thread = CreateThread( NULL, 0, Partition_send_thread_routine, NULL, 0, &ret );
-#endif		/* ARCH_PC_WIN95 */
 
 	for(;;)
 	{
@@ -297,11 +268,8 @@ static  void    initialize_locks(void)
 
 #ifdef	_REENTRANT
 
-#ifndef 	ARCH_PC_WIN95
+
 static	void	*Read_thread_routine()
-#else		/* ARCH_PC_WIN95 */
-static	DWORD WINAPI    Read_thread_routine( void *dummy)
-#endif		/* ARCH_PC_WIN95 */
 {
 	for(;;)
 	{
@@ -563,11 +531,8 @@ static	void	Send_partition()
 
 #ifdef	_REENTRANT
 
-#ifndef 	ARCH_PC_WIN95
+
 static	void	*Partition_send_thread_routine()
-#else		/* ARCH_PC_WIN95 */
-static	DWORD WINAPI    Partition_send_thread_routine( void *dummy)
-#endif		/* ARCH_PC_WIN95 */
 {
     sp_time onesecond_time = { 1, 0};
     sp_time send_interval;
@@ -834,11 +799,10 @@ static	void 	Send_status_query()
 
 #ifdef	_REENTRANT
 
-#ifndef 	ARCH_PC_WIN95
-static	void	*Status_send_thread_routine()
-#else		/* ARCH_PC_WIN95 */
-static	DWORD WINAPI    Status_send_thread_routine( void *dummy)
-#endif		/* ARCH_PC_WIN95 */
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void	*Status_send_thread_routine()
 {
     sp_time onesecond_time = { 1, 0};
     sp_time send_interval;

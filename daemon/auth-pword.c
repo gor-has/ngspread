@@ -52,8 +52,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifndef ARCH_PC_WIN95
-
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -63,13 +61,6 @@
 #endif
 
 #include <sys/ioctl.h>
-
-#else   /* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-#define	ioctl 	ioctlsocket
-
-#endif  /* ARCH_PC_WIN95 */
 
 #define MAX_PWORD_USERNAME 32
 #define MAX_PWORD_PASSWORD 8

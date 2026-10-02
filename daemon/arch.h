@@ -36,9 +36,6 @@
 #ifndef INC_ARCH
 #define INC_ARCH
 
-
-
-
 #include <stdint.h>
 
 /*
@@ -64,8 +61,6 @@
 #undef          INTSIZE64
 #undef          INTSIZE16
 
-
-#ifndef ARCH_PC_WIN95
 /* If we aren't using windows... we can use autoconf */
 
 // #  include "config.h"
@@ -132,104 +127,6 @@
 #    error "INVALID_SOCKET must be -1!"
 #  endif
   
-#else /* ARCH_PC_WIN95 */
-
-/* We are using windows... */
-
-/* Windows defines a default FD_SETSIZE of 64. However, the size of
- * fd_set array for select can be raised by defining a larger constant
- * before including windows headers.
- */
-#  define         FD_SETSIZE      1024
-
-#  include <winsock2.h>
-#  include <ws2tcpip.h>   /* after definition of FD_SETSIZE! */
-
-#  define         INTSIZE32
-#  define         ARCH_SCATTER_NONE
-#  define         ARCH_ENDIAN        0x80000080
-#  define         LOC_INLINE      
-#  define         BADCLOCK
-#  define         HAVE_GOOD_VARGS
-/* Windows now has a strerror function and if we do not use it 
- * compile errors occur with shared DLL libraries. 
- */
-#  define         HAVE_STRERROR
-/* This size is for packing several messages into one packet */
-#  define         ARCH_SCATTER_SIZE  64
-#  define         ERR_TIMEDOUT       EAGAIN
-#  define         sock_errno         WSAGetLastError()
-#  define         sock_set_errno(a)  WSASetLastError(a)
-#  define         GAI_STRERROR(e)    sock_strerror(e)
-/* NOTE: this whole approach is dangerous as it could rewrite system headers too causing compile conflicts, linking errors, etc. */
-#  define         MAXPATHLEN         _MAX_PATH
-#  define         alloca             _alloca
-#  define         strdup             _strdup
-#  define         fileno             _fileno
-/* Sockets are not file descriptors on windows so they need a special close function. */
-/* TODO: probably should do it the opposite way; 
-   on *nix define closesocket to be close and then use closesocket on sockets;
-   that way we don't lose access to close() on windows
-*/
-#  define         close              closesocket
-
-#  define         HAVE_SOCKLEN_T 1
-typedef         int             sockopt_len_t;
-
-/* System location of spread.conf file */
-#  define         SPREAD_ETCDIR   "/etc"
-/* Use winsock constants since we are dealing with sockets
- * Note: If we ever need file IO with errno's we will have conflicts
- * since the WSA version and the basic E versions may not have the same
- * number. Right now we don't need the E versions for windows so we just
- * use the WSA versions.
- */
-#  undef EINTR
-#  undef EAGAIN
-#  undef EWOULDBLOCK
-#  undef EINPROGRESS
-#  define EINTR       WSAEINTR
-#  define EAGAIN      WSAEWOULDBLOCK
-#  define EWOULDBLOCK WSAEWOULDBLOCK
-#  define EINPROGRESS WSAEINPROGRESS
-
-/* Windows does not define MAXHOSTNAMELEN, so we define it here to a reasonable host name limit */
-#  define MAXHOSTNAMELEN 128
-
-/* byte is already defined as a typedef to unsigned char on Windows XP (and probably earlier) so do not define 
- * #  ifndef byte
- * #    define byte unsigned char
- * #  endif
- */
-
-#  ifndef int16
-#    define int16 short
-#  endif
-
-#  ifndef int16u
-#    define int16u unsigned short
-#  endif
-
-#  ifndef int32
-#    define int32 int
-#  endif
-
-#  ifndef int32u
-#    define int32u unsigned int
-#  endif
-
-#  ifndef UINT32_MAX
-#    define         UINT32_MAX      UINT_MAX
-#  endif
-
-#  ifndef INT32_MAX
-#    define         INT32_MAX       INT_MAX
-#  endif
-
-/* Declare functions from arch.c */
-char *sock_strerror(int err);
-
-#endif /* ARCH_PC_WIN95 */
 
 /* Pick which rand version to use */
 

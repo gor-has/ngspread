@@ -80,7 +80,6 @@
 #undef NEED_IN_SYSTM_H
 
 /* Data types */
-#undef ARCH_PC_WIN95
 #undef ARCH_SCATTER_NONE
 #undef ARCH_SCATTER_CONTROL
 #undef ARCH_SCATTER_ACCRIGHTS
