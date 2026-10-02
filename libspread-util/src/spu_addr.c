@@ -38,38 +38,29 @@
 #include <string.h>
 #include <errno.h>
 
-#ifndef SPU_ARCH_PC_WIN95
-#  include <netdb.h>
-#endif
+#include <netdb.h>
 
 #include "arch.h"
 #include "spu_alarm.h"
 #include "spu_addr.h"
 
 #ifndef GAI_STRERROR
-#  ifndef SPU_ARCH_PC_WIN95
-#    define GAI_STRERROR(e) gai_strerror(e)
-#  else
-#    define GAI_STRERROR(e) sock_strerror(e)
-#  endif
+#define GAI_STRERROR(e) gai_strerror(e)
 #endif
 
 #ifndef EOVERFLOW
-#  ifndef SPU_ARCH_PC_WIN95
-#    define EOVERFLOW EINVAL
-#  else
-#    define EOVERFLOW WSA_INVALID_PARAMETER
-#  endif
+#define EOVERFLOW EINVAL
 #endif
 
-/********************************************************************************
- ********************************************************************************/
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 
 char Spu_addr_ntop_buf[SPU_ADDR_STRSIZE];
 
-/********************************************************************************
- ********************************************************************************/
-
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 #if !defined(AF_UNSPEC) || AF_UNSPEC != 0
 #  error AF_UNSPEC is not defined or is non-zero?!
 #endif
@@ -80,31 +71,31 @@ static socklen_t spu_addr_len_low(const spu_addr *a)
   
   switch (a->addr.sa_family)
   {
-  case AF_UNSPEC:
-    ret = sizeof(*a);
-    break;
-    
-  case AF_INET:
-    ret = sizeof(a->ipv4);
-    break;
-
-  case AF_INET6:
-    ret = sizeof(a->ipv6);
-    break;
-
-#ifndef ARCH_PC_WIN95
-  case AF_UNIX:
-    ret = sizeof(a->un);
-    break;
-#endif
+     case AF_UNSPEC:
+        ret = sizeof(*a);
+        break;
+        
+     case AF_INET:
+        ret = sizeof(a->ipv4);
+        break;
+        
+     case AF_INET6:
+        ret = sizeof(a->ipv6);
+        break;
+              
+     case AF_UNIX:
+        ret = sizeof(a->un);
+        break;
+        
   }
-
+  
   return ret;
+
 }
 
-/********************************************************************************
- ********************************************************************************/
-
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int spu_addr_from_sockaddr(spu_addr *a, const struct sockaddr *sa, socklen_t sa_len)
 {
   if (sa_len > sizeof(*a))
@@ -223,106 +214,112 @@ int spu_addr_ntop_canon_r(const spu_addr *a, char *str, size_t n)
   return ret;
 }
 
-/********************************************************************************
- ********************************************************************************/
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int spu_addr_from_sockaddr_known(spu_addr *a, const struct sockaddr *sa)
 {
+   
   int    ret  = 0;
   size_t zero = 0;
   
   switch (sa->sa_family)
   {
-  case AF_UNSPEC:
-    zero = sizeof(*a);
-    break;
-    
-  case AF_INET:
-    a->ipv4 = *(struct sockaddr_in*) sa;
-    zero    = sizeof(*a) - sizeof(a->ipv4);
-    break;
-
-  case AF_INET6:
-    a->ipv6 = *(struct sockaddr_in6*) sa;
-    zero    = sizeof(*a) - sizeof(a->ipv6);
-    break;
-
-#ifndef ARCH_PC_WIN95
-  case AF_UNIX:
-    a->un = *(struct sockaddr_un*) sa;
-    zero  = sizeof(*a) - sizeof(a->un);
-    break;
-#endif
-    
-  default:
-    Alarmp(SPLOG_FATAL, NONE, "spu_addr_from_sockaddr_known: unexpected address family: %d\n", sa->sa_family);
-    break;
+     case AF_UNSPEC:
+        zero = sizeof(*a);
+        break;
+        
+     case AF_INET:
+        a->ipv4 = *(struct sockaddr_in*) sa;
+        zero    = sizeof(*a) - sizeof(a->ipv4);
+        break;
+        
+     case AF_INET6:
+        a->ipv6 = *(struct sockaddr_in6*) sa;
+        zero    = sizeof(*a) - sizeof(a->ipv6);
+        break;
+        
+     case AF_UNIX:
+        a->un = *(struct sockaddr_un*) sa;
+        zero  = sizeof(*a) - sizeof(a->un);
+        break;
+        
+     default:
+        Alarmp(SPLOG_FATAL, NONE, "spu_addr_from_sockaddr_known: unexpected address family: %d\n", sa->sa_family);
+        break;
   }
-
+  
   memset((char*) (a + 1) - zero, 0, zero);
 
   return ret;
 }
 
-/********************************************************************************
- ********************************************************************************/
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 socklen_t spu_addr_len(const spu_addr *a)
 {
+   
   socklen_t ret = spu_addr_len_low(a);
 
   if (!ret)
-    Alarmp(SPLOG_FATAL, NONE, "spu_addr_len: unrecognized address family: %d\n", a->addr.sa_family);
-
+  {
+     Alarmp(SPLOG_FATAL, NONE, "spu_addr_len: unrecognized address family: %d\n", a->addr.sa_family);
+  }
+  
   return ret;
+
 }
 
-/********************************************************************************
- ********************************************************************************/
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 const char *spu_addr_family_str(const spu_addr *a)
 {
-  return spu_af_str(a->addr.sa_family);
+   return spu_af_str(a->addr.sa_family);
 }
 
-/********************************************************************************
- ********************************************************************************/
-
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 const char *spu_af_str(int family)
 {
+   
   const char *ret = NULL;
   
   switch (family)
   {
-  case AF_UNSPEC:
-    ret = "AF_UNSPEC";
-    break;
-    
-  case AF_INET:
-    ret = "AF_INET";
-    break;
-
-  case AF_INET6:
-    ret = "AF_INET6";
-    break;
-
-#ifndef ARCH_PC_WIN95
-  case AF_UNIX:
-    ret = "AF_UNIX";
-    break;
-#endif
-    
-  default:
-    Alarmp(SPLOG_FATAL, NONE, "spu_af_str: unexpected address family: %d\n", family);
-    break;
+     case AF_UNSPEC:
+        ret = "AF_UNSPEC";
+        break;
+        
+     case AF_INET:
+        ret = "AF_INET";
+        break;
+        
+     case AF_INET6:
+        ret = "AF_INET6";
+        break;
+        
+     case AF_UNIX:
+        ret = "AF_UNIX";
+        break;
+        
+     default:
+        Alarmp(SPLOG_FATAL, NONE, "spu_af_str: unexpected address family: %d\n", family);
+        break;
   }
-
+  
   return ret;
+
 }
 
-/********************************************************************************
- ********************************************************************************/
-
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int spu_addr_ip_cmp(const spu_addr *l, const spu_addr *r, int include_port)
 {
    
@@ -372,6 +369,7 @@ int spu_addr_ip_cmp(const spu_addr *l, const spu_addr *r, int include_port)
                  ret = 1;
            }
            break;
+           
         default:
            Alarmp(SPLOG_FATAL, NONE,
                   "spu_addr_ip_cmp: unexpected address family %d\n",
@@ -380,17 +378,22 @@ int spu_addr_ip_cmp(const spu_addr *l, const spu_addr *r, int include_port)
      }
   }
   else if (l->addr.sa_family == AF_INET)
+  {
      ret = -1;
+  }
   
   else
+  {
      ret = 1;
+  }
   
   return ret;
+  
 }
 
-/********************************************************************************
- ********************************************************************************/
-
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int spu_addr_ip_is_unspecified(const spu_addr *a)
 {
   int ret = 0;

@@ -46,15 +46,12 @@
 
 #ifdef _REENTRANT
 
-#ifndef 	ARCH_PC_WIN95
-#include        <sys/types.h>
-#include        <sys/socket.h>
-#include 	<pthread.h>
-#else		/* ARCH_PC_WIN95 */
-#include	<windows.h>
-#endif		/* ARCH_PC_WIN95 */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <pthread.h>
 
 #endif /* _REENTRANT */
+
 
 #ifdef ENABLE_PASSWORD
 #include "auth-pword-client.h"
@@ -85,16 +82,8 @@ static  int     To_exit = 0;
 #define MAX_MEMBERS     100
 
 #ifdef	_REENTRANT
-
-#ifndef 	ARCH_PC_WIN95
-	static  pthread_t	Read_pthread;
-	static  void    *Read_thread_routine();
-#else		/* ARCH_PC_WIN95 */
-	static	HANDLE		Read_pthread;
-	static	DWORD WINAPI    Read_thread_routine( void *);
-#endif		/* ARCH_PC_WIN95 */
-
-
+static  pthread_t Read_pthread;
+static  void* Read_thread_routine();
 #endif /* _REENTRANT */
 
 static	void	Print_menu();
@@ -104,6 +93,10 @@ static	void	Usage( int argc, char *argv[] );
 static  void    Print_help();
 static  void	Bye();
 
+//----------------------------------------------------------------------
+//
+//
+//----------------------------------------------------------------------
 int main( int argc, char *argv[] )
 {
 	int	ret;
@@ -160,11 +153,8 @@ int main( int argc, char *argv[] )
 
 #ifdef	_REENTRANT
 
-#ifndef		ARCH_PC_WIN95
-		ret = pthread_create( &Read_pthread, NULL, Read_thread_routine, 0 );
-#else		/* ARCH_PC_WIN95 */
-		Read_pthread = CreateThread( NULL, 0, Read_thread_routine, NULL, 0, &ret );
-#endif		/* ARCH_PC_WIN95 */
+
+    ret = pthread_create( &Read_pthread, NULL, Read_thread_routine, 0 );
 
 	for(;;)
 	{
@@ -177,12 +167,9 @@ int main( int argc, char *argv[] )
 
 #else	/* _REENTRANT */
 
-#ifndef		ARCH_PC_WIN95
-		E_handle_events();
-#else		/* ARCH_PC_WIN95 */
-		for(;;)
-			User_command();
-#endif		/* ARCH_PC_WIN95 */
+
+    E_handle_events();
+
 
 #endif	/* _REENTRANT */
 
@@ -191,11 +178,10 @@ int main( int argc, char *argv[] )
 
 #ifdef	_REENTRANT
 
-#ifndef 	ARCH_PC_WIN95
-static	void	*Read_thread_routine()
-#else		/* ARCH_PC_WIN95 */
-static	DWORD WINAPI    Read_thread_routine( void *dummy)
-#endif		/* ARCH_PC_WIN95 */
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static	void* Read_thread_routine()
 {
 	for(;;)
 	{
@@ -206,8 +192,12 @@ static	DWORD WINAPI    Read_thread_routine( void *dummy)
 
 #endif	/* _REENTRANT */
 
-static	void	User_command()
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void	User_command()
 {
+   
 	char	command[130];
 	char	mess[MAX_MESSLEN];
 	char	group[80];
@@ -223,110 +213,110 @@ static	void	User_command()
 
 	switch( command[0] )
 	{
-		case 'j':
-			ret = sscanf( &command[2], "%s", group );
-			if( ret < 1 ) 
-			{
-				printf(" invalid group \n");
-				break;
-			}
-			ret = SP_join( Mbox, group );
-			if( ret < 0 ) SP_error( ret );
-
-			break;
-
-		case 'l':
-			ret = sscanf( &command[2], "%s", group );
-			if( ret < 1 ) 
-			{
-				printf(" invalid group \n");
-				break;
-			}
-			ret = SP_leave( Mbox, group );
-			if( ret < 0 ) SP_error( ret );
-
-			break;
-
-		case 's':
-			num_groups = sscanf(&command[2], "%s%s%s%s%s%s%s%s%s%s", 
-						groups[0], groups[1], groups[2], groups[3], groups[4],
-						groups[5], groups[6], groups[7], groups[8], groups[9] );
-			if( num_groups < 1 ) 
-			{
-				printf(" invalid group \n");
-				break;
-			}
-			printf("enter message: ");
-			if (fgets(mess, 200, stdin) == NULL)
-				Bye();
-			mess_len = strlen( mess );
+       case 'j':
+          ret = sscanf( &command[2], "%s", group );
+          if( ret < 1 ) 
+          {
+             printf(" invalid group \n");
+             break;
+          }
+          ret = SP_join( Mbox, group );
+          if( ret < 0 ) SP_error( ret );
+          
+          break;
+          
+       case 'l':
+          ret = sscanf( &command[2], "%s", group );
+          if( ret < 1 ) 
+          {
+             printf(" invalid group \n");
+             break;
+          }
+          ret = SP_leave( Mbox, group );
+          if( ret < 0 ) SP_error( ret );
+          
+          break;
+          
+       case 's':
+          num_groups = sscanf(&command[2], "%s%s%s%s%s%s%s%s%s%s", 
+                              groups[0], groups[1], groups[2], groups[3], groups[4],
+                              groups[5], groups[6], groups[7], groups[8], groups[9] );
+          if( num_groups < 1 ) 
+          {
+             printf(" invalid group \n");
+             break;
+          }
+          printf("enter message: ");
+          if (fgets(mess, 200, stdin) == NULL)
+             Bye();
+          mess_len = strlen( mess );
 #ifdef _REENTRANT
 #ifdef __bsdi__		/* bsdi bug - doing a close when another thread blocks on the socket causes a seg fault */
 	ret = send( Mbox, mess, 0, 0 );
 	if( ret < 0 )
 	{
-		SP_error( CONNECTION_CLOSED );
-		Bye();
+       SP_error( CONNECTION_CLOSED );
+       Bye();
 	}
 #endif /* __bsdi__ */
 #endif /* _REENTRANT */
-			ret= SP_multigroup_multicast( Mbox, SAFE_MESS, num_groups, (const char (*)[MAX_GROUP_NAME]) groups, 1, mess_len, mess );
-			if( ret < 0 ) 
-			{
-				SP_error( ret );
-				Bye();
+    ret= SP_multigroup_multicast( Mbox, SAFE_MESS, num_groups, (const char (*)[MAX_GROUP_NAME]) groups, 1, mess_len, mess );
+    if( ret < 0 ) 
+    {
+       SP_error( ret );
+       Bye();
 			}
-			Num_sent++;
-
-			break;
-
-		case 'm':
-			num_groups = sscanf(&command[2], "%s%s%s%s%s%s%s%s%s%s", 
-						groups[0], groups[1], groups[2], groups[3], groups[4],
-						groups[5], groups[6], groups[7], groups[8], groups[9] );
-			if( num_groups < 1 ) 
-			{
-				printf(" invalid group \n");
-				break;
-			}
+    Num_sent++;
+    
+    break;
+    
+       case 'm':
+          num_groups = sscanf(&command[2], "%s%s%s%s%s%s%s%s%s%s", 
+                              groups[0], groups[1], groups[2], groups[3], groups[4],
+                              groups[5], groups[6], groups[7], groups[8], groups[9] );
+          if( num_groups < 1 ) 
+          {
+             printf(" invalid group \n");
+             break;
+          }
 			printf("enter message: ");
-                        mess_len = 0;
-                        while ( mess_len < MAX_MESSLEN) {
-                            if (fgets(&mess[mess_len], 200, stdin) == NULL)
-				Bye();
-                            if (mess[mess_len] == '\n')
-                                break;
-                            mess_len += strlen( &mess[mess_len] );
+            mess_len = 0;
+            while ( mess_len < MAX_MESSLEN) {
+               if (fgets(&mess[mess_len], 200, stdin) == NULL)
+                  Bye();
+               if (mess[mess_len] == '\n')
+                  break;
+               mess_len += strlen( &mess[mess_len] );
                         }
 #ifdef _REENTRANT
 #ifdef __bsdi__		/* bsdi bug - doing a close when another thread blocks on the socket causes a seg fault */
-	ret = send( Mbox, mess, 0, 0 );
-	if( ret < 0 )
+            ret = send( Mbox, mess, 0, 0 );
+            if( ret < 0 )
 	{
-		SP_error( CONNECTION_CLOSED );
-		Bye();
+       SP_error( CONNECTION_CLOSED );
+       Bye();
 	}
 #endif /* __bsdi__ */
 #endif /* _REENTRANT */
 			ret= SP_multigroup_multicast( Mbox, SAFE_MESS, num_groups, (const char (*)[MAX_GROUP_NAME]) groups, 1, mess_len, mess );
 			if( ret < 0 ) 
 			{
-				SP_error( ret );
-				Bye();
+               SP_error( ret );
+               Bye();
 			}
 			Num_sent++;
-
+            
 			break;
 
-		case 'b':
-			ret=sscanf( &command[2], "%s", group );
-			if( ret != 1 ) strcpy( group, "dummy_group_name" );
-			printf("enter size of each message: ");
-			if (fgets(mess, 200, stdin) == NULL)
-				Bye();
+       case 'b':
+          ret=sscanf( &command[2], "%s", group );
+          if( ret != 1 ) strcpy( group, "dummy_group_name" );
+          printf("enter size of each message: ");
+          if (fgets(mess, 200, stdin) == NULL)
+             Bye();
 			ret=sscanf(mess, "%u", &mess_len );
 			if( ret !=1 ) mess_len = Previous_len;
-                        if( mess_len > MAX_MESSLEN ) mess_len = MAX_MESSLEN;
+            if( mess_len > MAX_MESSLEN ) mess_len = MAX_MESSLEN;
 			Previous_len = mess_len;
 			printf("sending 10 messages of %u bytes\n", mess_len );
 			for( i=0; i<10; i++ )
@@ -335,7 +325,7 @@ static	void	User_command()
 				sprintf( mess, "mess num %d ", Num_sent );
 #ifdef _REENTRANT
 #ifdef __bsdi__		/* bsdi bug - doing a close when another thread blocks on the socket causes a seg fault */
-	ret = send( Mbox, mess, 0,0 );
+                ret = send( Mbox, mess, 0,0 );
 	if( ret < 0 )
 	{
 		SP_error( CONNECTION_CLOSED );
@@ -596,12 +586,16 @@ static  void	Bye()
 #endif	/* _REENTRANT */
 
 	SP_disconnect( Mbox );
-#ifdef	_REENTRANT
-#ifndef		ARCH_PC_WIN95
-		pthread_join( Read_pthread, NULL );
-#else		/* ARCH_PC_WIN95 */
 
-#endif		/* ARCH_PC_WIN95 */
+#ifdef	_REENTRANT
+
+		pthread_join( Read_pthread, NULL );
+
 #endif	/* _REENTRANT */
-	exit( 0 );
+
+        exit( 0 );
+
 }
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------

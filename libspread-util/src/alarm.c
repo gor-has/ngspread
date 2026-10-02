@@ -35,20 +35,6 @@
 
 #include "arch.h"
 
-/* NOTE: undef redefined errno values under windows in arch.h */
-#ifdef ARCH_PC_WIN95
-#  undef EINVAL
-#  undef EINTR
-#  undef EAGAIN
-#  undef EWOULDBLOCK
-#  undef EINPROGRESS
-#  undef EALREADY
-#  undef EIO
-#  undef ENOMEM
-#  ifndef va_copy
-#    define va_copy(d,s) ((d) = (s))
-#  endif
-#endif
 #include <errno.h>
 
 #include <stdio.h>
@@ -241,17 +227,13 @@ static void Internal_Alarmp(int16 priority, int32 mask, char *message, va_list a
    
         if (will_exit)
         {
-#ifndef USE_THREADED_ALARM
+
+
           fprintf(stdout, "Exit caused by Alarm!\n");
-#  ifndef ARCH_PC_WIN95
           //abort();
-	  exit(1);
-#  else
           exit(1);
-#  endif
-#else
-          Threaded_Alarm_Exit();
-#endif
+
+
         }
     }
 }
@@ -506,12 +488,11 @@ static void *Threaded_Alarm_Thread(void *dmy)
   return NULL;
 }
 
-/************************************************************************************************
- * Threaded_Alarm_Append: Core fcn for trying to output an Alarm.
- * Writes to an in-memory buffer that will later be pushed to disk by
- * Alarm_Thread.
- ***********************************************************************************************/
-
+//----------------------------------------------------------------------
+// Threaded_Alarm_Append: Core fcn for trying to output an Alarm.
+// Writes to an in-memory buffer that will later be pushed to disk by
+// Alarm_Thread.
+//----------------------------------------------------------------------
 static void Threaded_Alarm_Append(const char *str, size_t str_len)
 {
   int       try_wrap   = 0;
@@ -570,22 +551,25 @@ static void Threaded_Alarm_Append(const char *str, size_t str_len)
       try_wrap = 1;
     }
 
-    /* try writing to wrap area if we didn't successfully append above */
-
-    if (try_wrap) {
+    // try writing to wrap area if we didn't successfully append above 
+    if (try_wrap)
+    {
 
       write_here = Buffer + Buffer_Wrapped_Size;
       space_left = Buffer_Lock_Offset - Buffer_Wrapped_Size;
       
       assert(space_left >= 0 && write_here >= Buffer && write_here + space_left <= Buffer + Buffer_Lock_Offset);
 
-      if (str_len <= space_left) {
-        memcpy(write_here, str, str_len);
-        Buffer_Wrapped_Size += (long) str_len;
-        assert(BUFFER_VALID());
-
-      } else {
-        fail_print = 1;
+      if (str_len <= space_left)
+      {
+         memcpy(write_here, str, str_len);
+         Buffer_Wrapped_Size += (long) str_len;
+         assert(BUFFER_VALID());
+         
+      }
+      else
+      {
+         fail_print = 1;
       }
     }
 
@@ -595,11 +579,14 @@ static void Threaded_Alarm_Append(const char *str, size_t str_len)
       assert(0);
     }
   }
-  if ((tmp = pthread_mutex_unlock(&Output_Mutex)) != 0) {
+  
+  if ((tmp = pthread_mutex_unlock(&Output_Mutex)) != 0)
+  {
     assert(0);
   }
 
-  if (fail_print) {
+  if (fail_print)
+  {
     fprintf(stdout, "*** WARNING ***: Threaded_Alarm_Append: Not enough room in in-memory buffer to append Alarm msg!  Writing directly to stdout!\n%s\n", str);
   }
 }
@@ -643,12 +630,9 @@ static void Threaded_Alarm_Exit(void)
     }
 
     fprintf(stdout, "Exit caused by Alarm!\n");
-#ifndef ARCH_PC_WIN95
     //abort();
-    exit(1):
-#else
     exit(1);
-#endif
+    
   }
 }
 

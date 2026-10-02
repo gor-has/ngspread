@@ -36,16 +36,39 @@
 #ifndef SYSTEM_DEFS_H
 #define SYSTEM_DEFS_H
 
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/param.h>
+#include <limits.h>
 
-#ifndef SPU_ARCH_PC_WIN95
-/* For non Windows systems, use standard headers and types */
-#include "spu_system_defs_autoconf.h"
+#define LOC_INLINE __inline__
 
+#ifndef byte
+#define byte uint8_t
+#endif
+
+#ifndef int16
+#define int16 int16_t
+#endif
+
+#ifndef int16u
+#define int16u uint16_t
+#endif
+
+#ifndef int32
+#define int32 int32_t
+#endif
+
+#ifndef int32u
+#define int32u uint32_t
+#endif
+
+#ifdef UIO_MAXIOV
+#define SPU_ARCH_SCATTER_SIZE UIO_MAXIOV
 #else
-/* For Windows systems, use specified types and definitions */
-#include "spu_system_defs_windows.h"
-
-#endif /* SPU_ARCH_PC_WIN95 */
+#define SPU_ARCH_SCATTER_SIZE 1024
+#endif
 
 
 #endif /* SYSTEM_DEFS_H */

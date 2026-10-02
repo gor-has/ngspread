@@ -40,17 +40,13 @@
 
 #include "arch.h"  /* NOTE: must come after #include <errno.h> on Windows bc we redef error defines */
 
-#ifndef ARCH_PC_WIN95
-#  include <sys/types.h>
-#  include <sys/socket.h>
-#  include <netinet/in.h>
-#  include <arpa/inet.h>
-#  include <sys/uio.h>
-#  include <sys/time.h>
-#  include <unistd.h>
-#else
-#  include <winsock2.h>
-#endif
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/uio.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include "spu_data_link.h"
 #include "spu_alarm.h"

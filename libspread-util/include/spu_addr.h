@@ -40,15 +40,11 @@
 
 #include <stddef.h>
 
-#ifdef SPU_ARCH_PC_WIN95
-#  include <winsock2.h>
-#  include <ws2tcpip.h>
-#else
-#  include <sys/types.h>
-#  include <sys/socket.h>
-#  include <sys/un.h>
-#  include <netinet/in.h>
-#endif
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+
 
 #define SPU_ADDR_STRSIZE    256
 #define SPU_ADDR_IP_STRSIZE 46
@@ -68,9 +64,7 @@ typedef union
   struct sockaddr_in6     ipv6;
   struct sockaddr_storage storage;
 
-#ifndef SPU_ARCH_PC_WIN95
   struct sockaddr_un      un;
-#endif
 
 } spu_addr;
 

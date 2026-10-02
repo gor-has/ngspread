@@ -50,25 +50,27 @@
  *      #define         HAVE_STDINT_H   ( exists if true --currently glibc2.1 needs it )
  *      typedef         {sys dependent type} sockopt_len_t;
  *      #define         ERR_TIMEDOUT    EAGAIN
- *      #define         sock_errno { errno or WSAGetLastError() for windows }
- *      #define         sock_strerror { strerror or sock_strerror for windows }
- *      #define         sock_set_errno { sock_unix_set_errno or WSASetLastError for windows }
+ *      #define         sock_errno 
+ *      #define         sock_strerror 
+ *      #define         sock_set_errno(a) (errno = (a)) 
  */
 
 #undef          INTSIZE32
 #undef          INTSIZE64
 #undef          INTSIZE16
 
-#ifndef ARCH_PC_WIN95
+
 /* If we aren't using windows... we can use autoconf */
 
 #  include "config.h"
 
-#  ifdef WORDS_BIGENDIAN
-#    define ARCH_ENDIAN 0x00000000
-#  else
-#    define ARCH_ENDIAN 0x80000080
-#  endif
+#if defined(__BYTE_ORDER__) && \
+    (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#  define ARCH_ENDIAN 0x00000000
+#else
+#  define ARCH_ENDIAN 0x80000080
+#endif
+
   
 #  define LOC_INLINE __inline__
   
@@ -123,119 +125,6 @@
 #    error "INVALID_SOCKET must be -1!"
 #  endif
   
-#else
-/* We are using windows... */
-
-/* Windows defines a default FD_SETSIZE of 64. However, the size of
- * fd_set array for select can be raised by defining a larger constant
- * before including windows headers
- */
-#  define FD_SETSIZE 1024
-
-#  include <winsock2.h>
-#  include <ws2tcpip.h>   /* NOTE: after definition of FD_SETSIZE! */
-
-#  define INTSIZE32
-#  define ARCH_SCATTER_NONE
-#  define ARCH_ENDIAN 0x80000080
-#  define LOC_INLINE      
-#  define BADCLOCK
-#  define HAVE_GOOD_VARGS
-
-/* Windows now has a strerror function and if we do not use it 
- * compile errors occur with shared DLL libraries. 
- */
-#  define HAVE_STRERROR
-#  define ARCH_SCATTER_SIZE 64
-#  define ERR_TIMEDOUT      EAGAIN
-#  define sock_errno        WSAGetLastError()
-#  define sock_set_errno(e) WSASetLastError(e)
-#  define MAXPATHLEN        _MAX_PATH
-#  define alloca            _alloca
-
-/* Sockets are not file descriptors on windows so they need a special close function. */
-#  define close closesocket
-
-#  define HAVE_SOCKLEN_T 1
-typedef int sockopt_len_t;
-
-/* System location of spread.conf file */
-#  define         SPREAD_ETCDIR   "/etc"
-
-/* Use winsock constants since we are dealing with sockets
- * Note: If we ever need file IO with errno's we will have conflicts
- * since the WSA version and the basic E versions may not have the same
- * number. Right now we don't need the E versions for windows so we just
- * use the WSA versions.
- */
-
-#  undef EINVAL
-#  define EINVAL WSAEINVAL
-
-#  undef EINTR
-#  define EINTR WSAEINTR
-
-#  undef EAGAIN
-#  define EAGAIN WSAEWOULDBLOCK
-
-#  undef EWOULDBLOCK
-#  define EWOULDBLOCK WSAEWOULDBLOCK
-
-#  undef EINPROGRESS
-#  define EINPROGRESS WSAEINPROGRESS
-
-#  undef EALREADY
-#  define EALREADY WSAEALREADY
-
-#  undef EIO
-#  define EIO WSASYSCALLFAILURE
-
-#  undef ENOMEM
-#  define ENOMEM WSA_NOT_ENOUGH_MEMORY
-
-/* Windows does not define MAXHOSTNAMELEN, so we define it here to a reasonable host name limit */
-#define MAXHOSTNAMELEN 256
-
-/* byte is already defined as a typedef to unsigned char on Windows XP (and probably earlier) so do not define 
- * #ifndef byte
- * #define byte unsigned char
- * #endif
- */
-
-#  ifndef int16
-#    define int16 short
-#  endif
-
-#  ifndef int16u
-#    define int16u unsigned short
-#  endif
-
-#  ifndef int32
-#    define int32 int
-#  endif
-
-#  ifndef int32u
-#    define int32u unsigned int
-#  endif
-
-#  ifndef UINT32_MAX
-#    define UINT32_MAX UINT_MAX
-#  endif
-
-#  ifndef INT32_MAX
-#    define INT32_MAX INT_MAX
-#  endif
-
-#  ifndef int64_t
-#    define int64_t __int64
-#  endif
-
-#  define PRId64 "I64d"
-
-/* Declare functions from arch.c */
-char *sock_strerror(int err);
-
-#endif /* ARCH_PC_WIN95 */
 
 /* Pick which rand version to use */
 #ifdef HAVE_LRAND48

@@ -39,33 +39,12 @@
 
 #include "arch.h"
 
-/* NOTE: undef redefined errno values under windows in arch.h */
-#ifdef ARCH_PC_WIN95
-#  undef EINVAL
-#  undef EINTR
-#  undef EAGAIN
-#  undef EWOULDBLOCK
-#  undef EINPROGRESS
-#  undef EALREADY
-#  undef EIO
-#  undef ENOMEM
-#endif
 #include <errno.h>
-
-#ifndef	ARCH_PC_WIN95
-
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#else 	/* ARCH_PC_WIN95 */
-
-#include <winsock2.h>
-#include <sys/timeb.h>
-
-#endif	/* ARCH_PC_WIN95 */
-
 #include <string.h>
 #include "spu_events.h"
 #include "spu_objects.h"    /* For memory */
@@ -156,8 +135,11 @@ int 	E_init(void)
 	return( 0 );
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 sp_time	E_get_time(void)
-#ifndef	ARCH_PC_WIN95
+
 {
         struct timeval read_time;
         sp_time        t;
@@ -168,20 +150,7 @@ sp_time	E_get_time(void)
 
         return t;
 }
-#else	/* ARCH_PC_WIN95 */
-{
-	struct _timeb timebuffer;
-        sp_time       t;
 
-	_ftime( &timebuffer );
-
-	t.sec   = (long) timebuffer.time;
-	t.usec  = (long) timebuffer.millitm;
-	t.usec *= 1000;	
-
-        return t;
-}
-#endif	/* ARCH_PC_WIN95 */
 
 /* TODO: add a monotonic clock for Windows (QueryPerformanceCounter, QueryPerformanceFrequency), OSX too */
 /* TODO: implement division as 64b multiplication by a fixed point reciprocal: http://homepage.divms.uiowa.edu/~jones/bcd/divide.html */
@@ -449,26 +418,27 @@ int 	E_in_queue( void (* func)( int code, void *data ), int code,
 }
 
 
-void	E_delay( sp_time t )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void E_delay( sp_time t )
 {
 	struct timeval 	tmp_t;
 
 	tmp_t.tv_sec = t.sec;
 	tmp_t.tv_usec = t.usec;
 
-#ifndef ARCH_PC_WIN95
-        if (select(0, NULL, NULL, NULL, &tmp_t ) < 0)
-        {
-                Alarmp( SPLOG_INFO, EVENTS, "E_delay: select delay returned error: %s\n", strerror(errno));
-        }
-#else  /* ARCH_PC_WIN95 */
-        SleepEx( tmp_t.tv_sec*1000+tmp_t.tv_usec/1000, 0 );
-#endif /* ARCH_PC_WIN95 */   
+    if (select(0, NULL, NULL, NULL, &tmp_t ) < 0)
+    {
+       Alarmp( SPLOG_INFO, EVENTS, "E_delay: select delay returned error: %s\n", strerror(errno));
+    }
 
 }
 
-
-void    E_print_slow_event( struct event_record *ev )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void E_print_slow_event( struct event_record *ev )
 {
 
     if (ev->type == NULL_EVENT_t)
@@ -592,21 +562,19 @@ int	E_attach_fd( int fd, int fd_type,
 		Alarmp( SPLOG_PRINT, EVENTS, "E_attach_fd: invalid priority %d for fd %d with fd_type %d\n", priority, fd, fd_type );
 		return( -1 );
 	}
+    
 	if( fd_type < 0 || fd_type >= NUM_FDTYPES )
 	{
 		Alarmp( SPLOG_PRINT, EVENTS, "E_attach_fd: invalid fd_type %d for fd %d with priority %d\n", fd_type, fd, priority );
 		return( -1 );
 	}
-#ifndef	ARCH_PC_WIN95
-	/* Windows bug: Reports FD_SETSIZE of 64 but select works on all
-	 * fd's even ones with numbers greater then 64.
-	 */
-        if( fd < 0 || fd > FD_SETSIZE )
-        {
-                Alarmp( SPLOG_PRINT, EVENTS, "E_attach_fd: invalid fd %d (max %d) with fd_type %d with priority %d\n", fd, FD_SETSIZE, fd_type, priority );
-                return( -1 );
-        }
-#endif
+
+    if( fd < 0 || fd > FD_SETSIZE )
+    {
+       Alarmp( SPLOG_PRINT, EVENTS, "E_attach_fd: invalid fd %d (max %d) with fd_type %d with priority %d\n", fd, FD_SETSIZE, fd_type, priority );
+       return( -1 );
+    }
+
 	for( j=0; j < Fd_queue[priority].num_fds; j++ )
 	{
 		if( ( Fd_queue[priority].events[j].fd == fd ) && ( Fd_queue[priority].events[j].fd_type == fd_type ) )
@@ -622,12 +590,15 @@ int	E_attach_fd( int fd, int fd_type,
 			return( 1 );
 		}
 	}
+    
 	num_fds = Fd_queue[priority].num_fds;
 
-        if ( num_fds == MAX_FD_EVENTS ) {
-                Alarmp( SPLOG_PRINT, EVENTS, "E_attach_fd: Reached Maximum number of events. Recompile with larger MAX_FD_EVENTS\n");
-                return( -1 );
-        }
+    if ( num_fds == MAX_FD_EVENTS )
+    {
+       Alarmp( SPLOG_PRINT, EVENTS, "E_attach_fd: Reached Maximum number of events. Recompile with larger MAX_FD_EVENTS\n");
+       return( -1 );
+    }
+    
 	Fd_queue[priority].events[num_fds].fd	   = fd;
 	Fd_queue[priority].events[num_fds].fd_type = fd_type;
 	Fd_queue[priority].events[num_fds].func	   = func;
@@ -644,7 +615,10 @@ int	E_attach_fd( int fd, int fd_type,
 	return( 0 );
 }
 
-int 	E_detach_fd( int fd, int fd_type )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+int E_detach_fd( int fd, int fd_type )
 {
 	int	i;
 	int	found;
