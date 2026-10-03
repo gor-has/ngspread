@@ -174,10 +174,7 @@ static void insert_user(char *username, char *crypt_password)
 static bool lookup_user(char *username, struct user_password **user_h)
 {
     struct user_password *user_p;
-    bool allowed;
-
     user_p = Users;
-    allowed = FALSE;
     /* Search allowed lists */
     while(user_p)
     {
@@ -226,6 +223,7 @@ void pword_auth_client_connection(struct session_auth_info *sess_auth_p)
 
 static void auth_client_conn_read(mailbox mbox, int dummy, struct session_auth_info *sess_auth_p)
 {
+    (void) dummy;
     char username[MAX_PWORD_USERNAME + 1];
     char clear_password[MAX_PWORD_PASSWORD + 1];
     int ioctl_cmd, ret;
@@ -297,5 +295,7 @@ static void auth_client_conn_read(mailbox mbox, int dummy, struct session_auth_i
 }
 void pword_auth_monitor_connection(mailbox mbox, int32 ip_addr)
 {
+    (void) mbox;
+    (void) ip_addr;
     /*	Mon_Connection_Allowed(); */
 }

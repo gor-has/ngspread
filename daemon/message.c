@@ -51,6 +51,7 @@ static  char Temp_buf[100000];
 
 int32   Obj_Inc_Refcount(void *obj)
 {
+        (void) obj;
         return(0);
 }
 
@@ -245,6 +246,7 @@ void    Message_add_oldtype_to_reject( message_obj *msg, int32u old_type )
 
 void    Message_Dec_Refcount(message_obj *msg)
 {
+        (void) msg;
         /* Not needed for Spread3 */
         return;
 }
@@ -275,7 +277,7 @@ message_obj     *Message_dup_and_reset_old_message(message_obj *msg, int len)
 	for( i=0, mess_dup->num_elements=0, remain=len ; remain > 0 ; i++, remain -= sizeof(packet_body) )
 	{
 		mess_dup->elements[i].buf = msg->elements[i].buf;
-		if( remain > sizeof(packet_body) )
+		if( remain > (int) sizeof(packet_body) )
                 {
 			mess_dup->elements[i].len = sizeof( packet_body );
 		}else{
@@ -345,7 +347,7 @@ void            Message_Buffer_to_Message_Fragments( message_obj *msg, char buf[
                         copied_bytes += bytes_to_copy;
                 } else {
                         bytes_to_copy = num_bytes - copied_bytes;
-                        if( bytes_to_copy > sizeof( packet_body ) )
+                        if( bytes_to_copy > (int) sizeof( packet_body ) )
                                 bytes_to_copy = sizeof( packet_body );
                         scat->elements[i].buf = (char *)new( PACKET_BODY );
                         memcpy( scat->elements[i].buf, &buf[ copied_bytes ], bytes_to_copy );
@@ -365,7 +367,7 @@ void    Message_element_len_fixup(message_obj *msg)
         total_size = head_p->data_len + MAX_GROUP_NAME * head_p->num_groups + sizeof(message_header);
         sum_size = sizeof(packet_body) * (msg->num_elements - 1);
         last = total_size / sizeof(packet_body);
-        if (total_size < sizeof(packet_body))
+        if (total_size < (int) sizeof(packet_body))
         {
                 assert(last == 0);
                 msg->elements[last].len = total_size;
@@ -380,6 +382,8 @@ void    Message_element_len_fixup(message_obj *msg)
 
 int     Message_kill_mess_fixup(message_obj *msg, int orig_len, int mbox)
 {
+        (void) msg;
+        (void) mbox;
         /* Don't need to do anything for spread3 */
         return(orig_len);
 }
@@ -470,7 +474,15 @@ message_obj     *Message_create_message(int mess_type, char *sender_name)
 	/* Setting endian to my endian on the header */
 	new_head->type = Set_endian( new_head->type );
 	new_head->hint = Set_endian( 0 );
-	strncpy( new_head->private_group_name, sender_name, MAX_GROUP_NAME);
+
+	//strncpy( new_head->private_group_name, sender_name, MAX_GROUP_NAME);
+
+    strncpy(new_head->private_group_name,
+            sender_name,
+            MAX_GROUP_NAME - 1);
+    
+    new_head->private_group_name[MAX_GROUP_NAME - 1] = '\0';
+    
 	new_head->num_groups = 0;
 	new_head->data_len = 0;
         return(new_mess);

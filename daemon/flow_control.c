@@ -67,6 +67,7 @@ void	FC_new_configuration( )
 
 int	FC_allowed( int flow_control, int num_retrans )
 {
+        (void) num_retrans;
 	int	allowed;
 
 	if( Memb_state() == EVS ) return( 0 );

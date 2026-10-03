@@ -266,73 +266,93 @@ static bool Conf_daemon_changed(const proc *np, const segment *np_seg, const pro
   return FALSE;
 }
 
-/* Basic algorithm:
- * 1) copy Config to oldConfig
- * 2) load new spread.conf file into Config
- * 3) Check if we should exit;
- * 4) Check if this change is only add/sub reconfig or not. Return answer
- */
-bool    Conf_reload_initiate(void)
+//----------------------------------------------------------------------
+//  Basic algorithm:
+//  1) copy Config to oldConfig
+//  2) load new spread.conf file into Config
+//  3) Check if we should exit;
+//  4) Check if this change is only add/sub reconfig or not. Return answer
+//----------------------------------------------------------------------
+bool Conf_reload_initiate(void)
 {
   char idstr[MAX_ID_SIZE];
   bool need_singleton = FALSE;
-  proc *np, *op, *op2;
+  
+  proc *np = NULL;
+  proc *op = NULL;
+  proc *op2 = NULL;
+
   int  i;
 
   /* make a copy of current configuration then load new configuration */
   
   if ((Config_Previous = Mem_alloc(sizeof(configuration))) == NULL)
-    Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_reload_initiate: Failed to allocate memory for old configuration structure\n");        
-        
+  {
+     Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_reload_initiate: Failed to allocate memory for old configuration structure\n");        
+  }
+  
   if ((Config_Previous->allprocs = Mem_alloc(MAX_PROCS_RING * sizeof(proc))) == NULL)
-    Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_reload_initiate: Failed to allocate memory for old configuration procs array\n");
-
+  {
+     Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_reload_initiate: Failed to allocate memory for old configuration procs array\n");
+  }
+  
   Conf_config_copy(Config, Config_Previous);
 
   if (Conf_proc_ref_by_id_in_conf(Config_Previous, My.id, &op) < 0)
-    Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_reload_initiate: BUG! My.id(%s) is not in previous config!\n", Conf_id_to_str(My.id, idstr));
+  {
+     Alarmp(SPLOG_FATAL, CONF_SYS,
+            "Conf_reload_initiate: BUG! My.id(%s) is not in previous config!\n",
+            Conf_id_to_str(My.id, idstr));
+     return FALSE;
+  }
 
+  
   Conf_load_conf_file(Conf_FileName, Conf_MyName);  /* NOTE: updates My */
 
-  /* check if this daemon is still in config with same identity + networking; exit if not */
+  // check if this daemon is still in config with same identity + networking; exit if not
         
   if (Conf_proc_ref_by_id(My.id, &np) < 0)
-    Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_reload_initiate: BUG! New My.id(%s) is no longer in config!\n", Conf_id_to_str(My.id, idstr));
-
-  Conf_daemon_changed(np, &Config->segments[np->seg_index], op, &Config_Previous->segments[op->seg_index], TRUE);  /* NOTE: will print + exit if this daemon has changed */
+  {
+     Alarmp(SPLOG_FATAL, CONF_SYS,
+            "Conf_reload_initiate: BUG! New My.id(%s) is no longer in config!\n",
+            Conf_id_to_str(My.id, idstr));
+     return FALSE;
+  }
   
-  /* check that any daemons both in old and new configs still have same identity + networking */
-  /* NOTE: Do we really require that all surviving daemons' networking can't change at all? Probably not, but this is safe. */
+  Conf_daemon_changed(np, &Config->segments[np->seg_index], op, &Config_Previous->segments[op->seg_index], TRUE);  // NOTE: will print + exit if this daemon has changed
+  
+  // check that any daemons both in old and new configs still have same identity + networking 
+  // NOTE: Do we really require that all surviving daemons' networking can't change at all? Probably not, but this is safe.
   
   for (i = 0; i < Config->num_total_procs; ++i)
   {
-    np = &Config->allprocs[i];
-    Conf_proc_ref_by_name_in_conf(Config_Previous, np->name, (op = NULL, &op));
-    Conf_proc_ref_by_id_in_conf(Config_Previous, np->id, (op2 = NULL, &op2));
+     np = &Config->allprocs[i];
+     Conf_proc_ref_by_name_in_conf(Config_Previous, np->name, (op = NULL, &op));
+     Conf_proc_ref_by_id_in_conf(Config_Previous, np->id, (op2 = NULL, &op2));
+     
+     // NOTE: we need to be paranoid here bc user could change daemon names and/or vids at same time */
     
-    /* NOTE: we need to be paranoid here bc user could change daemon names and/or vids at same time */
-    
-    if (op == NULL && op2 == NULL)
-    {
-      Alarmp(SPLOG_INFO, CONF_SYS, "Conf_reload_initiate: Added new daemon: name %s, addr [%s]:%u, id '%s'\n",
-             np->name, SPU_ADDR_NTOP_CANON(&np->proc_addr), (unsigned) spu_addr_ip_get_port(&np->proc_addr), Conf_id_to_str(np->id, idstr));
-      continue;
-    }
-
-    if (op != op2)
-    {
-      Alarmp(SPLOG_INFO, CONF_SYS, "Conf_reload_initiate: daemon identity mapped to two different old daemons: name '%s' -> %p, id '%s' -> %p! Partitioning to singleton!\n",
-             np->name, op, Conf_id_to_str(np->id, idstr), op2);
-            
-      need_singleton = TRUE;
-      break;
-    }
-
-    if ((need_singleton = Conf_daemon_changed(np, &Config->segments[np->seg_index], op, &Config_Previous->segments[op->seg_index], FALSE)))
-      break;
+     if (op == NULL && op2 == NULL)
+     {
+        Alarmp(SPLOG_INFO, CONF_SYS, "Conf_reload_initiate: Added new daemon: name %s, addr [%s]:%u, id '%s'\n",
+               np->name, SPU_ADDR_NTOP_CANON(&np->proc_addr), (unsigned) spu_addr_ip_get_port(&np->proc_addr), Conf_id_to_str(np->id, idstr));
+        continue;
+     }
+     
+     if (op != op2)
+     {
+        Alarmp(SPLOG_INFO, CONF_SYS, "Conf_reload_initiate: daemon identity mapped to two different old daemons: name '%s' -> %p, id '%s' -> %p! Partitioning to singleton!\n",
+               np->name, op, Conf_id_to_str(np->id, idstr), op2);
+        
+        need_singleton = TRUE;
+        break;
+     }
+     
+     if ((need_singleton = Conf_daemon_changed(np, &Config->segments[np->seg_index], op, &Config_Previous->segments[op->seg_index], FALSE)))
+        break;
   }
 
-  /* free old config structs and arrays since they will never be used again */
+  // free old config structs and arrays since they will never be used again
   
   dispose(Config_Previous->allprocs);
   dispose(Config_Previous);
@@ -341,138 +361,146 @@ bool    Conf_reload_initiate(void)
   Alarmp(SPLOG_INFO, CONF_SYS, "Conf_reload_initiate: Return need_singleton = %d\n", need_singleton);
         
   return need_singleton;
+
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void	Conf_load_conf_file(char *file_name, char *my_name)
 {
-        size_t    num_ips;
-        spu_addr *ips                             = ip_enum_local(&num_ips);
-        char      configfile_location[MAXPATHLEN] = { 0 };
-        int32u    scope_id                        = 0;
-	char	  idstr[MAX_ID_SIZE];
-        char      name[MAX_PROC_NAME];
-        int       i;
-        size_t    j;
-        
-        if (ips == NULL || num_ips == 0)
-          Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: Couldn't find any local internet addresses on this machine!\n");
+   size_t    num_ips;
+   spu_addr *ips                             = ip_enum_local(&num_ips);
+   char      configfile_location[MAXPATHLEN] = { 0 };
+   int32u    scope_id                        = 0;
+   char	  idstr[MAX_ID_SIZE];
+   char      name[MAX_PROC_NAME];
+   int       i;
+   size_t    j;
+   
+   if (ips == NULL || num_ips == 0)
+      Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: Couldn't find any local internet addresses on this machine!\n");
+   
+   /* open configuration file */
+   
+   strcat(configfile_location, SPREAD_ETCDIR);
+   strcat(configfile_location, "/spread.conf");
+   
+   if (NULL != (yyin = fopen(file_name,"r")))
+      Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using file: %s\n", file_name);
+   
+   else if (NULL != (yyin = fopen("./spread.conf", "r")))
+      Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using file: ./spread.conf\n");
+   
+   else if (NULL != (yyin = fopen(configfile_location, "r")))
+      Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using file: %s\n", configfile_location);
+   
+   else
+      Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: error opening config file %s and alternates!\n", file_name);
+   
+   /* reinitialize and run parser */
+   
+   parser_init();        
+   yyparse();
+   fclose(yyin);
+   
+   /* match my_name to an entry in configuration file */
+   
+   if (my_name == NULL)
+   {
+      for (i = 0; i < Config->num_total_procs; ++i)
+         for (j = 0; j < num_ips; ++j)
+            if (!spu_addr_ip_cmp(&Config->allprocs[i].proc_addr, &ips[j], FALSE))
+            {
+               My = Config->allprocs[i];
+               goto DONE;
+            }
+      
+     DONE:
+      if (i == Config->num_total_procs)
+         Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: None of this machine's internet addresses match any daemon's address in configuration!\n");
+   }
+   else
+   {
+      strncpy(name, my_name, MAX_PROC_NAME);
+      name[MAX_PROC_NAME - 1] = 0;
+      
+      if (Conf_proc_by_name(name, &My) < 0)
+         Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: My proc %s is not in configuration!\n", name);
+   }
 
-        /* open configuration file */
-        
-        strcat(configfile_location, SPREAD_ETCDIR);
-        strcat(configfile_location, "/spread.conf");
+   /* make sure that the addresses we configured for this daemon are actually on this machine */
+   /* set IPv6 sin6_scope_id's */
+   
+   for (j = 0; j < num_ips && spu_addr_ip_cmp(&My.proc_addr, &ips[j], FALSE); ++j);
+   
+   if (j >= num_ips)
+      Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: None of this machine's internet addresses match this daemon's address %s!\n", SPU_ADDR_NTOP(&My.proc_addr));
 
-	if (NULL != (yyin = fopen(file_name,"r")))
-          Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using file: %s\n", file_name);
-        
-	else if (NULL != (yyin = fopen("./spread.conf", "r")))
-          Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using file: ./spread.conf\n");
-        
-	else if (NULL != (yyin = fopen(configfile_location, "r")))
-          Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using file: %s\n", configfile_location);
-        
-        else
-          Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: error opening config file %s and alternates!\n", file_name);
-
-        /* reinitialize and run parser */
-        
-        parser_init();        
-	yyparse();
-        fclose(yyin);
-
-        /* match my_name to an entry in configuration file */
-        
-	if (my_name == NULL)
-        {
-          for (i = 0; i < Config->num_total_procs; ++i)
-            for (j = 0; j < num_ips; ++j)
-              if (!spu_addr_ip_cmp(&Config->allprocs[i].proc_addr, &ips[j], FALSE))
-              {
-                My = Config->allprocs[i];
-                goto DONE;
-              }
-
-        DONE:
-          if (i == Config->num_total_procs)
-            Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: None of this machine's internet addresses match any daemon's address in configuration!\n");
-	}
-        else
-        {
-          strncpy(name, my_name, MAX_PROC_NAME);
-          name[MAX_PROC_NAME - 1] = 0;
-                
-          if (Conf_proc_by_name(name, &My) < 0)
-            Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: My proc %s is not in configuration!\n", name);
-	}
-
-        /* make sure that the addresses we configured for this daemon are actually on this machine */
-        /* set IPv6 sin6_scope_id's */
-
-        for (j = 0; j < num_ips && spu_addr_ip_cmp(&My.proc_addr, &ips[j], FALSE); ++j);
-
-        if (j >= num_ips)
-          Alarmp(SPLOG_FATAL, CONF_SYS, "Conf_load_conf_file: None of this machine's internet addresses match this daemon's address %s!\n", SPU_ADDR_NTOP(&My.proc_addr));
-
-        if (spu_addr_family(&My.proc_addr) == AF_INET6)
-        {
-          if (My.proc_addr.ipv6.sin6_scope_id == 0)                       /* NOTE: if address contained an interface spec (e.g. - %eth0), then parser did an if_nametoindex() on it; otherwise zero */
-            My.proc_addr.ipv6.sin6_scope_id = ips[j].ipv6.sin6_scope_id;  /* if no interface was spec'd or the lookup failed; try to use whatever ip_enum_local found instead (e.g. - getifaddrs) */
-
-          if ((scope_id = My.proc_addr.ipv6.sin6_scope_id) != 0)
-            Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: my ipv6 address [%s] corresponds with interface index %u; using that (sin6_scope_id) for all unicast sends!\n",
-                   SPU_ADDR_NTOP(&My.proc_addr), (unsigned) scope_id);
-
-          else
-            Alarmp(SPLOG_WARNING, CONF_SYS, "Conf_load_conf_file: couldn't find an interface index that corresponds with my address [%s]! Trying to use a scope_id of 0 for all unicast sends!\n",
+   if (spu_addr_family(&My.proc_addr) == AF_INET6)
+   {
+      if (My.proc_addr.ipv6.sin6_scope_id == 0)                       /* NOTE: if address contained an interface spec (e.g. - %eth0), then parser did an if_nametoindex() on it; otherwise zero */
+         My.proc_addr.ipv6.sin6_scope_id = ips[j].ipv6.sin6_scope_id;  /* if no interface was spec'd or the lookup failed; try to use whatever ip_enum_local found instead (e.g. - getifaddrs) */
+      
+      if ((scope_id = My.proc_addr.ipv6.sin6_scope_id) != 0)
+         Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: my ipv6 address [%s] corresponds with interface index %u; using that (sin6_scope_id) for all unicast sends!\n",
+                SPU_ADDR_NTOP(&My.proc_addr), (unsigned) scope_id);
+      
+      else
+         Alarmp(SPLOG_WARNING, CONF_SYS, "Conf_load_conf_file: couldn't find an interface index that corresponds with my address [%s]! Trying to use a scope_id of 0 for all unicast sends!\n",
                    SPU_ADDR_NTOP(&My.proc_addr));
-          
-          for (i = 0; i < Config->num_total_procs; ++i)
-            Config->allprocs[i].proc_addr.ipv6.sin6_scope_id = scope_id;
-
-          for (i = 0; i < Config->segments[My.seg_index].num_seg_addrs; ++i)
-          {
-            if (Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id == 0)                
-              Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id = scope_id;
-
-            if (Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id != 0)            
-              Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: my ipv6 segment address [%s] corresponds with interface index %u; using that (sin6_scope_id) for this segment address!\n",
-                     SPU_ADDR_NTOP(&Config->segments[My.seg_index].seg_addrs[i]), (unsigned) Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id);
-
-            else
-              Alarmp(SPLOG_WARNING, CONF_SYS, "Conf_load_conf_file: couldn't find an interface index that corresponds with my segment address [%s]! Trying to use a scope_id of 0 for this segment address!\n",
-                     SPU_ADDR_NTOP(&Config->segments[My.seg_index].seg_addrs[i]));
-          }
-        }
-
-        for (i = 0; i < My.num_if; ++i)
-        {
-          if (spu_addr_ip_is_unspecified(&My.ifc[i].ifaddr) || spu_addr_ip_is_multicast(&My.ifc[i].ifaddr))
-            continue;
+      
+      for (i = 0; i < Config->num_total_procs; ++i)
+         Config->allprocs[i].proc_addr.ipv6.sin6_scope_id = scope_id;
+      
+      for (i = 0; i < Config->segments[My.seg_index].num_seg_addrs; ++i)
+      {
+         if (Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id == 0)                
+            Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id = scope_id;
          
-          for (j = 0; j < num_ips && spu_addr_ip_cmp(&My.ifc[i].ifaddr, &ips[j], FALSE); ++j);
-          
-          if (j >= num_ips)
-          {
-            Alarmp(SPLOG_WARNING, CONF_SYS, "Conf_load_conf_file: none of this machine's addresses match configured interface %s\n", SPU_ADDR_NTOP(&My.ifc[i].ifaddr));            
-            continue;
-          }
-
-          if (spu_addr_family(&My.ifc[i].ifaddr) == AF_INET6)
-          {
-            if (My.ifc[i].ifaddr.ipv6.sin6_scope_id == 0 &&
-                (My.ifc[i].ifaddr.ipv6.sin6_scope_id = ips[j].ipv6.sin6_scope_id) == 0)
-              My.ifc[i].ifaddr.ipv6.sin6_scope_id = scope_id;
-
-            Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using sin6_scope_id %u for interface %s\n", (unsigned) My.ifc[i].ifaddr.ipv6.sin6_scope_id, SPU_ADDR_NTOP(&My.ifc[i].ifaddr));
-          }
+         if (Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id != 0)            
+            Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: my ipv6 segment address [%s] corresponds with interface index %u; using that (sin6_scope_id) for this segment address!\n",
+                   SPU_ADDR_NTOP(&Config->segments[My.seg_index].seg_addrs[i]), (unsigned) Config->segments[My.seg_index].seg_addrs[i].ipv6.sin6_scope_id);
+         
+         else
+            Alarmp(SPLOG_WARNING, CONF_SYS, "Conf_load_conf_file: couldn't find an interface index that corresponds with my segment address [%s]! Trying to use a scope_id of 0 for this segment address!\n",
+                   SPU_ADDR_NTOP(&Config->segments[My.seg_index].seg_addrs[i]));
+      }
         }
-        
-	Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: My name: %s, id: %s, addr: %s, port: %u\n",
-               My.name, Conf_id_to_str(My.id, idstr), SPU_ADDR_NTOP(&My.proc_addr), (unsigned) spu_addr_ip_get_port(&My.proc_addr));
-        
-        free(ips);
+   
+   for (i = 0; i < My.num_if; ++i)
+   {
+      if (spu_addr_ip_is_unspecified(&My.ifc[i].ifaddr) || spu_addr_ip_is_multicast(&My.ifc[i].ifaddr))
+         continue;
+      
+      for (j = 0; j < num_ips && spu_addr_ip_cmp(&My.ifc[i].ifaddr, &ips[j], FALSE); ++j);
+      
+      if (j >= num_ips)
+      {
+         Alarmp(SPLOG_WARNING, CONF_SYS, "Conf_load_conf_file: none of this machine's addresses match configured interface %s\n", SPU_ADDR_NTOP(&My.ifc[i].ifaddr));            
+            continue;
+      }
+      
+      if (spu_addr_family(&My.ifc[i].ifaddr) == AF_INET6)
+      {
+         if (My.ifc[i].ifaddr.ipv6.sin6_scope_id == 0 &&
+             (My.ifc[i].ifaddr.ipv6.sin6_scope_id = ips[j].ipv6.sin6_scope_id) == 0)
+            My.ifc[i].ifaddr.ipv6.sin6_scope_id = scope_id;
+
+         Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: using sin6_scope_id %u for interface %s\n", (unsigned) My.ifc[i].ifaddr.ipv6.sin6_scope_id, SPU_ADDR_NTOP(&My.ifc[i].ifaddr));
+      }
+   }
+   
+   Alarmp(SPLOG_INFO, CONF_SYS, "Conf_load_conf_file: My name: %s, id: %s, addr: %s, port: %u\n",
+          My.name, Conf_id_to_str(My.id, idstr), SPU_ADDR_NTOP(&My.proc_addr), (unsigned) spu_addr_ip_get_port(&My.proc_addr));
+   
+   free(ips);
+   
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 configuration	Conf()
 {
 	return *Config;
@@ -844,35 +872,47 @@ void    Conf_set_port_reuse_type(port_reuse state)
         SocketPortReuse = state;
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static void set_param_if_valid(char **param, char *value, char *description, size_t max_value_len)
 {
-        if (value != NULL && *value != '\0')
-        {
-                size_t len       = strlen(value);
-                char  *old_value = *param;
-                char  *buf;
-                
-                if (len > max_value_len)
-                  Alarmp(SPLOG_FATAL, CONF_SYS, "set_param_if_valid: value string too long\n");
-
-                if (NULL == (buf = Mem_alloc(len + 1)))
-                  Alarmp(SPLOG_FATAL, CONF_SYS, "set_param_if_valid: Out of memory\n");
-                
-                strncpy(buf, value, len);
-                buf[len] = '\0';
-
-                *param = buf;
-                
-                if (old_value != NULL)
-                    dispose(old_value);
-
-                Alarmp(SPLOG_INFO, CONF_SYS, "Set %s to '%s'\n", description, value);
-        }
-        else
-          Alarmp(SPLOG_ERROR, CONF_SYS, "set_param_if_valid: Ignored invalid %s\n", description);
+   
+   if (value != NULL && *value != '\0')
+   {
+      size_t len       = strlen(value);
+      char  *old_value = *param;
+      char  *buf;
+      
+      if (len > max_value_len)
+         Alarmp(SPLOG_FATAL, CONF_SYS, "set_param_if_valid: value string too long\n");
+      
+      if (NULL == (buf = Mem_alloc(len + 1)))
+         Alarmp(SPLOG_FATAL, CONF_SYS, "set_param_if_valid: Out of memory\n");
+      
+      //strncpy(buf, value, len);
+      //buf[len] = '\0';
+      
+      memcpy(buf, value, len);
+      buf[len] = '\0';
+      
+      *param = buf;
+      
+      if (old_value != NULL)
+         dispose(old_value);
+      
+      Alarmp(SPLOG_INFO, CONF_SYS, "Set %s to '%s'\n", description, value);
+   }
+   else
+   {
+      Alarmp(SPLOG_ERROR, CONF_SYS, "set_param_if_valid: Ignored invalid %s\n", description);
+   }
 }
 
-void    Conf_set_max_session_messages(int max_messages)
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void Conf_set_max_session_messages(int max_messages)
 {
         if (max_messages < 0)
         {
@@ -883,11 +923,17 @@ void    Conf_set_max_session_messages(int max_messages)
         MaxSessionMessages = max_messages;
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 int     Conf_get_max_session_messages(void)
 {
         return (MaxSessionMessages);
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void    Conf_set_active_ip_version(int ipver)
 {
     if (Conf_Active_IP_Version != -1 && ipver != Conf_Active_IP_Version)

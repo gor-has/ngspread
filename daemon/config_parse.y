@@ -221,8 +221,10 @@ static void set_daemon_name_and_addr(const char *name, const conf_ipaddr *conf_a
   if (name == NULL)
     name = conf_addr->ipstr;
 
-  strncpy(Config->allprocs[num_procs].name, name, MAX_PROC_NAME);
-  Config->allprocs[num_procs].name[MAX_PROC_NAME - 1] = 0;
+  strncpy(Config->allprocs[num_procs].name,
+          name, MAX_PROC_NAME -1);
+  
+  Config->allprocs[num_procs].name[MAX_PROC_NAME - 1] = '\0';
 
   /* NOTE: remove any trailing IPv6 interface specification, which are node-local, if we derived the name from the daemon address */
   

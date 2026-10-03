@@ -68,5 +68,7 @@ void null_auth_client_connection(struct session_auth_info *sess_auth_p)
 }
 void null_auth_monitor_connection(mailbox mbox, int32 ip_addr)
 {
+    (void) mbox;
+    (void) ip_addr;
     /*	Mon_Connection_Allowed(); */
 }

@@ -81,7 +81,7 @@
 
 /* The representative of a synced set is the first member.
  * The set is sorted by daemon order in conf. */
-#define Is_synced_set_leader( proc_id ) ( (proc_id) == MySyncedSet.proc_ids[0] )
+#define Is_synced_set_leader( proc_id ) ( (int32)(proc_id) == MySyncedSet.proc_ids[0] )
 
 typedef struct dummy_groups_buf_link {
   char                           buf[GROUPS_BUF_SIZE];
@@ -1054,7 +1054,7 @@ void	G_handle_join( char *private_group_name, char *group_name )
                 grp->grp_id.index++;
 
 		/* if member is local then add mbox */
-		if( dmn->proc_id == My.id )
+		if( dmn->proc_id == (int32) My.id )
 		{
 			ses = Sess_get_session( private_name );
 			if( ses < 0 ) Alarmp( SPLOG_FATAL, GROUPS, "G_handle_join: local session does not exist\n" );
@@ -1618,7 +1618,7 @@ void	G_handle_groups( message_link *mess_link )
                 } else {
                         needed = 1;
                         for( grp_mlink = Gathered.next; grp_mlink != NULL; grp_mlink = grp_mlink->next )
-                                if( p.id == grp_mlink->rep_proc_id )
+                                if( (int32) p.id == grp_mlink->rep_proc_id )
                                         break;
                         if( grp_mlink == NULL )
                         {
@@ -1988,7 +1988,7 @@ static	int  G_build_memb_vs_buf( group *grp, message_obj *msg, char buf[], int32
                         head_ptr->data_len   += sizeof(int32u);
                         curr_vs_set_size      = 0;
                 }
-                if( dmn->proc_id == My.id ) {
+                if( dmn->proc_id == (int32) My.id ) {
                         if( local_vs_set_offset != 0 )
                                 Alarmp( SPLOG_FATAL, GROUPS, "G_build_memb_vs_buf: Found my vs set twice for group %s\n",
                                         grp->name );
@@ -2583,6 +2583,10 @@ static  mailbox mboxes[MAX_SESSIONS];
         
 static  void  G_compute_group_mask( group *grp, char *func_name )
 {
+#if (SPREAD_PROTOCOL != 4)
+        (void) grp;
+        (void) func_name;
+#endif
 #if (SPREAD_PROTOCOL == 4)
         int                     i;
         int                     temp;
@@ -2811,9 +2815,7 @@ static  void  G_add_to_synced_set( synced_set *sset ) {
 
 /* Remove members who aren't in the membership. */
 static  void  G_update_synced_set( synced_set *s, configuration *memb_p ) {
-        bool ret;
-        ret = G_update_synced_set_status( s, memb_p );
-        return;
+        G_update_synced_set_status( s, memb_p );
 }
 
 /* Remove members who aren't in the membership and
@@ -2827,8 +2829,8 @@ static  bool  G_update_synced_set_status( synced_set *s, configuration *memb_p )
                 if( Conf_id_in_conf( memb_p, s->proc_ids[i] ) >= 0 )
                         s->proc_ids[j++] = s->proc_ids[i];
         /* If we lost members. */
-        if( j != s->size ) {
-                s->size = j;
+        if( (int32u) j != s->size ) {
+                s->size = (int32u) j;
                 changed = TRUE;
         }
         return changed;
@@ -2849,9 +2851,7 @@ static  void  G_print_synced_set( int priority, synced_set *s, char *func_name )
 /* Eliminate the partitioned daemons of a group. */
 static  void G_eliminate_partitioned_daemons( group *grp ) 
 {
-    bool ret;
-    ret = G_eliminate_partitioned_daemons_status( grp );
-    return;
+    G_eliminate_partitioned_daemons_status( grp );
 }
 
 /* Eliminate the partitioned daemons of a group.  Return true if we changed the

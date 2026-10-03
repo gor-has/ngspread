@@ -224,7 +224,7 @@ void		Memb_init( void )
 	for( i=0; i < Conf_num_segments( Cn ); i++ )
 		Membership.segments[i].num_procs = 0;
         Conf_append_id_to_seg( &Membership.segments[My.seg_index], My.id);
-	Membership_id.proc_id = My.id;
+	Membership_id.proc_id = (int32) My.id;
 	Membership_id.time    = -1;
         Last_time_used        = Membership_id.time;
 	Transitional	      = 0;
@@ -232,10 +232,10 @@ void		Memb_init( void )
 
         Commit_set.num_pending = 1;
 	Commit_set.num_members = 1;
-	Commit_set.members[0] = My.id;
+	Commit_set.members[0] = (int32) My.id;
 
 	pack_ptr = new(PACK_HEAD_OBJ);
-	pack_ptr->proc_id = My.id;
+	pack_ptr->proc_id = (int32) My.id;
 
 	Send_pack.elements[0].len = sizeof(packet_header);
 	Send_pack.elements[0].buf = (char *)pack_ptr;
@@ -418,7 +418,6 @@ static	void	Memb_handle_join( sys_scatter *scat )
 	sys_scatter	send_scat;
 	proc		p;
 	int		i;
-	int		ret;
 	int		dummy;
 
     pack_ptr 	= (packet_header *) scat->elements[0].buf;
@@ -475,7 +474,11 @@ static	void	Memb_handle_join( sys_scatter *scat )
 	    break;
 
 	case SEG:
-	    ret = Conf_proc_by_id( pack_ptr->proc_id, &p );
+	    if( Conf_proc_by_id( pack_ptr->proc_id, &p ) < 0 )
+	    {
+		Alarmp( SPLOG_PRINT, PRINT, "Memb_handle_join: unknown proc_id %d\n", pack_ptr->proc_id );
+		break;
+	    }
 	    if( My.seg_index == p.seg_index && 
 		reps_ptr->reps[0].type == SEG_REP)
 	    {
@@ -483,7 +486,7 @@ static	void	Memb_handle_join( sys_scatter *scat )
 		My_seg_rep = pack_ptr->proc_id;
 		Shift_to_represented();
 		for( i=0; i < members_ptr->num_members; i++ )
-		    if( members_ptr->members[i] == My.id ) break;
+		    if( members_ptr->members[i] == (int32) My.id ) break;
 		Scast_alive( 1 );
 	    }else{
 		/* no need to remember this join */
@@ -491,7 +494,11 @@ static	void	Memb_handle_join( sys_scatter *scat )
 	    break;
 
 	case REPRESENTED:
-	    ret = Conf_proc_by_id( pack_ptr->proc_id, &p );
+	    if( Conf_proc_by_id( pack_ptr->proc_id, &p ) < 0 )
+	    {
+		Alarmp( SPLOG_PRINT, PRINT, "Memb_handle_join: unknown proc_id %d\n", pack_ptr->proc_id );
+		break;
+	    }
 	    if( My.seg_index == p.seg_index && 
 		reps_ptr->reps[0].type == SEG_REP)
 	    {
@@ -504,7 +511,7 @@ static	void	Memb_handle_join( sys_scatter *scat )
 		}
 		E_queue( Shift_to_seg_event, 0, NULL, Rep_timeout );
 		for( i=0; i < members_ptr->num_members; i++ )
-		    if( members_ptr->members[i] == My.id ) break;
+		    if( members_ptr->members[i] == (int32) My.id ) break;
                 Scast_alive( 1 );
 	    }else{
 		/* if My_seg_rep is determined -  send it to this guy */
@@ -867,6 +874,8 @@ void	Memb_token_loss( void )
 
 void	Memb_token_loss_event(int dmy, void *dmy_ptr)
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Memb_token_loss();
 }
 
@@ -886,7 +895,7 @@ static	void	Shift_to_seg( void )
 	GlobalStatus.state = SEG;
 
 	F_members.num_members = 1;
-	F_members.members[0] = My.id;
+	F_members.members[0] = (int32) My.id;
 	F_members.num_pending = 0;
 	E_queue( Scast_alive_event, 0, NULL, Zero_timeout );
 	E_queue( Gather_or_represented_event,  0, NULL, Seg_timeout );
@@ -894,6 +903,8 @@ static	void	Shift_to_seg( void )
 
 static	void	Shift_to_seg_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Shift_to_seg();
 }
 
@@ -903,7 +914,7 @@ static	void	Gather_or_represented( void )
 
 	My_seg_rep = -1;
 
-	if( Smallest_member( &F_members, &dummy ) ==  My.id )
+	if( Smallest_member( &F_members, &dummy ) == (int32) My.id )
 	{
 		Shift_to_gather();
 	}else{
@@ -913,6 +924,8 @@ static	void	Gather_or_represented( void )
 
 static	void	Gather_or_represented_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Gather_or_represented();
 }
 
@@ -922,7 +935,7 @@ static	void	Shift_to_gather( void )
 	GlobalStatus.state = GATHER;
 
 	F_reps.num_reps 	 = 1;
-	F_reps.reps[0].proc_id 	 = My.id;
+	F_reps.reps[0].proc_id 	 = (int32) My.id;
 	F_reps.reps[0].seg_index = My.seg_index;
 	if( Token_alive )
 		F_reps.reps[0].type = RING_REP;
@@ -951,7 +964,7 @@ static	void	Form_or_fail( void )
 	int		i;
 	int		dummy;
 
-	if( Smallest_rep( &F_reps, &dummy ) ==  My.id )
+	if( Smallest_rep( &F_reps, &dummy ) == (int32) My.id )
 	{
 		if( Token_alive && F_reps.num_reps == 1 )
 		{
@@ -975,7 +988,7 @@ static	void	Form_or_fail( void )
 			Alarmp( SPLOG_INFO, MEMB, "Form_or_fail: failed to gather\n");
 			/* failed to gather again */
 			F_members.num_members = 1;
-			F_members.members[0] = My.id;
+			F_members.members[0] = (int32) My.id;
 			F_members.num_pending = 0;
 			
 	    		Potential_reps.num_reps = 0;
@@ -994,6 +1007,8 @@ static	void	Form_or_fail( void )
 
 static	void	Form_or_fail_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Form_or_fail();
 }
 
@@ -1018,6 +1033,7 @@ static	void	Scast_alive( int code )
 
 static	void	Scast_alive_event( int code, void *dummy )
 {
+        (void) dummy;
         Scast_alive(code);
 }
 
@@ -1054,6 +1070,8 @@ static	void	Send_join( void )
 
 static	void	Send_join_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Send_join();
 }
 
@@ -1114,6 +1132,8 @@ void	Memb_lookup_new_members( void )
 
 void	Memb_lookup_new_members_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Memb_lookup_new_members();
 }
 
@@ -1175,10 +1195,10 @@ static	int	Insert_rep( reps_info *r, rep_info rep )
 			r->reps[i].proc_id = p.id;
 			return( 1 );
 		    }else if( r->reps[i].type == SEG_REP ) {
-                        if (r->reps[i].proc_id == p.id )
+                        if (r->reps[i].proc_id == (int32) p.id )
                                 return( 0 );
 		    }else if( r->reps[i].type == RING_REP && 
-			      r->reps[i].proc_id == p.id ) {
+			      r->reps[i].proc_id == (int32) p.id ) {
 			/* Former RING_REP lost its ring and became SEG_REP */
 		    	r->reps[i].type = SEG_REP;
 			return( 1 );
@@ -1201,12 +1221,12 @@ static	int	Insert_rep( reps_info *r, rep_info rep )
 			r->reps[i].proc_id = p.id;
 			return( 1 );
                     }else if( r->reps[i].type == SEG_REP ) {
-                        if (r->reps[i].proc_id == p.id ) {
+                        if (r->reps[i].proc_id == (int32) p.id ) {
                                 r->reps[i].type = RING_REP;
                                 return( 1 );
                         }
 		    }else if( r->reps[i].type == RING_REP && 
-			      r->reps[i].proc_id == p.id ) {
+			      r->reps[i].proc_id == (int32) p.id ) {
 			return( 0 );
                     }
 		}
@@ -1258,7 +1278,6 @@ static	int32	Smallest_rep( reps_info *r, int *index )
 	int	current;
 	int	i;
 	proc	curr_p, i_p;
-	int	ret;
 
 	current = 0;
 	for( i=1; i < r->num_reps; i++ )
@@ -1277,8 +1296,10 @@ static	int32	Smallest_rep( reps_info *r, int *index )
 				current = i;
 			else if( r->reps[i].seg_index == r->reps[current].seg_index )
 			{
-			    ret = Conf_proc_by_id( r->reps[current].proc_id, &curr_p );
-			    ret = Conf_proc_by_id( r->reps[i].proc_id, &i_p );
+			    if( Conf_proc_by_id( r->reps[current].proc_id, &curr_p ) < 0 )
+				Alarmp( SPLOG_FATAL, EXIT, "Smallest_rep: unknown proc_id %d\n", r->reps[current].proc_id );
+			    if( Conf_proc_by_id( r->reps[i].proc_id, &i_p ) < 0 )
+				Alarmp( SPLOG_FATAL, EXIT, "Smallest_rep: unknown proc_id %d\n", r->reps[i].proc_id );
 			    if( i_p.index_in_seg < curr_p.index_in_seg )
 				current = i;
 			}
@@ -1299,12 +1320,11 @@ static	void	Sort_members( members_info *m )
 	members_info	temp_members;
 	int		index;
 	int		i;
-	int32		dummy;
 
 	temp_members = *m;
 	for( i=0; i < m->num_members; i++ )
 	{
-		dummy = Smallest_member( &temp_members, &index );
+		Smallest_member( &temp_members, &index );
 		m->members[i] = temp_members.members[index];
 		temp_members.num_members--;
 		temp_members.members[index] = 
@@ -1317,13 +1337,12 @@ static	void	Sort_reps( reps_info *r )
 	reps_info	temp_reps;
 	int		index;
 	int		i;
-	int32		dummy;
 
 	temp_reps = *r;
 
 	for( i=0; i < r->num_reps; i++ )
 	{
-		dummy = Smallest_rep( &temp_reps, &index );
+		Smallest_rep( &temp_reps, &index );
 		r->reps[i] = temp_reps.reps[index];
 		temp_reps.num_reps--;
 		temp_reps.reps[index] = temp_reps.reps[temp_reps.num_reps];
@@ -1347,8 +1366,8 @@ static	void	Create_form1( void )
         members_info    valid_members;
 
 	form_token.type            = FORM1_TYPE;
-	form_token.proc_id         = My.id;
-        form_token.memb_id.proc_id = My.id;             /* NOTE: this memb_id is only used to ensure a FORM2 token matches up with the most recent FORM1 token we processed */
+	form_token.proc_id         = (int32) My.id;
+        form_token.memb_id.proc_id = (int32) My.id;             /* NOTE: this memb_id is only used to ensure a FORM2 token matches up with the most recent FORM1 token we processed */
         form_token.memb_id.time    = E_get_time().sec;
 	form_token.seq             = Highest_seq+3333;
 
@@ -1380,7 +1399,7 @@ static	void	Create_form1( void )
             /* Remove from F_members any members that are also in OUR F_reps (except myself). */
             for ( j = 0; j < F_reps.num_reps; j++ ) {
                 if ( (F_members.members[i] == F_reps.reps[j].proc_id ) && 
-                     (F_members.members[i] != My.id) ) {
+                     (F_members.members[i] != (int32) My.id) ) {
                     invalid_member = 1;
                     break;
                 }
@@ -1459,14 +1478,14 @@ static	void	Create_form1( void )
 	    Alarmp( SPLOG_FATAL, MEMB, "Create_form1:%d: token too big; num_bytes (%d); too many holes (%d)?\n", __LINE__, num_bytes, rg_info->num_holes );
 	}
 
-	*holes_procs_ptr = My.id;
+	*holes_procs_ptr = (int32) My.id;
 	holes_procs_ptr++;
 
 	/* insert other members of commit set */
 	for( i=0; i < Commit_set.num_members; i++ )
 	{
 		/* skipping self, because already there */
-		if( Commit_set.members[i] == My.id ) continue;
+		if( Commit_set.members[i] == (int32) My.id ) continue;
 
 		/* insert this member */
 		num_bytes += sizeof(int32);
@@ -1593,14 +1612,14 @@ static	void	Fill_form1( sys_scatter *scat )
 	}
 
 	/* update header */
-	form_token->proc_id = My.id;
+	form_token->proc_id = (int32) My.id;
 	if( form_token->seq < Highest_seq+3333 ) form_token->seq = Highest_seq+3333;
 
 	/* update members and reps */
 	if( State == OP || State == REPRESENTED )
 	{
 		/* validity check */
-		if( m_info->members[m_info->num_members] != My.id ||
+		if( m_info->members[m_info->num_members] != (int32) My.id ||
 		    m_info->num_pending <= 0 ) return;
 
 		m_info->num_members++;
@@ -1609,7 +1628,7 @@ static	void	Fill_form1( sys_scatter *scat )
 	}else if( State == GATHER ){
 
 		/* validity check */
-		if( r_info->reps[r_info->rep_index].proc_id != My.id ||
+		if( r_info->reps[r_info->rep_index].proc_id != (int32) My.id ||
 		    ( Token_alive  && r_info->reps[r_info->rep_index].type == SEG_REP ) ||
 		    ( !Token_alive && r_info->reps[r_info->rep_index].type == RING_REP ) ||
 		    m_info->num_pending != 0 ) 
@@ -1642,7 +1661,7 @@ static	void	Fill_form1( sys_scatter *scat )
                         /* 2) Any members of r_info I just received in form1 (except myself). */
                         for ( j = 0; !invalid_member && j < r_info->num_reps; j++ ) {
                                 if ( (F_members.members[i] == r_info->reps[j].proc_id ) && 
-                                     (F_members.members[i] != My.id) ) {
+                                     (F_members.members[i] != (int32) My.id) ) {
                                         invalid_member = 1;
                                         break;
                                 }
@@ -1651,7 +1670,7 @@ static	void	Fill_form1( sys_scatter *scat )
                         /* 3) Any members that are also in OUR F_reps (except myself). */
                         for ( j = 0; !invalid_member && j < F_reps.num_reps; j++ ) {
                                 if ( (F_members.members[i] == F_reps.reps[j].proc_id ) && 
-                                     (F_members.members[i] != My.id) ) {
+                                     (F_members.members[i] != (int32) My.id) ) {
                                         invalid_member = 1;
                                         break;
                                 }
@@ -1782,7 +1801,7 @@ static	void	Fill_form1( sys_scatter *scat )
                 /* Remove ourselves from m_info */
                 for ( i=0; i < m_info->num_members; i++) 
                 {
-                    if( m_info->members[i] == My.id )
+                    if( m_info->members[i] == (int32) My.id )
                     {
                         num_to_copy = m_info->num_members + m_info->num_pending - i - 1;
                         memmove(&m_info->members[i], &m_info->members[i+1], num_to_copy * sizeof(int32));
@@ -1822,14 +1841,14 @@ static	void	Fill_form1( sys_scatter *scat )
 		    Alarmp( SPLOG_FATAL, MEMB, "Fill_form1:%d: token too big; num_bytes (%d)\n", __LINE__, num_bytes );
 		}
 
-                *new_holes_procs_ptr = My.id;
+                *new_holes_procs_ptr = (int32) My.id;
                 new_holes_procs_ptr++;
 
                 /* insert other members of commit set */
                 for( i=0; i < Commit_set.num_members; i++ )
                 {
                     /* skipping self, because already there */
-                    if( Commit_set.members[i] == My.id ) continue;
+                    if( Commit_set.members[i] == (int32) My.id ) continue;
 
                     /* insert this member */
                     num_bytes += sizeof(int32);
@@ -1908,7 +1927,7 @@ static	void	Fill_form1( sys_scatter *scat )
 	    /* creating an updated temp_set based on my_rg_info and Commit_set */
 
 	    /* adding self to trans members */
-	    Insert_member( &temp_set, My.id );
+	    Insert_member( &temp_set, (int32) My.id );
 	    if( temp_set.num_members != (my_rg_info->num_trans + 1) )
 		Alarmp( SPLOG_FATAL, EXIT, "Fill_form1: incorrect trans set\n");
 	    temp_set.num_pending = my_rg_info->num_trans+1;
@@ -2077,7 +2096,7 @@ static	void	Read_form2( sys_scatter *scat )
         }
 
 	if( m_info->num_members < 0 || m_info->num_pending <= 0 || (int) m_info->num_members + m_info->num_pending >= MAX_PROCS_RING ||
-	    m_info->members[m_info->num_members] != My.id ) 
+	    m_info->members[m_info->num_members] != (int32) My.id ) 
         {
 	        Alarmp( SPLOG_WARNING, MEMB, "Read_form2:%d: WARNING!!! Malformed packet; num_members (%hd), num_pending (%hd), next (0x%08X) -- dropping!\n", 
                         __LINE__, m_info->num_members, m_info->num_pending, ( m_info->num_members < MAX_PROCS_RING ? m_info->members[m_info->num_members] : -1 ) );
@@ -2120,7 +2139,7 @@ static	void	Read_form2( sys_scatter *scat )
                 return;
         }
 
-	form_token->proc_id = My.id;
+	form_token->proc_id = (int32) My.id;
 
 	m_info->num_members++;
 	m_info->num_pending--;
@@ -2140,7 +2159,7 @@ static	void	Read_form2( sys_scatter *scat )
                 Last_time_used = memb_time;
 
 		/* I am future leader, fill membership_id */
-		m_id_info->proc_id = My.id;
+		m_id_info->proc_id = (int32) My.id;
 		m_id_info->time    = ++Last_time_used;
 	}
 
@@ -2409,7 +2428,7 @@ void	Memb_print_form_token( sys_scatter *scat )
 	m_info	   = (members_info *)&scat->elements[scat_index].buf[num_bytes];
 	num_bytes  += sizeof(members_info);
 
-        if (num_bytes == scat->elements[scat_index].len )
+        if (num_bytes == (int) scat->elements[scat_index].len )
         {
             num_bytes = 0;
             scat_index++;
@@ -2430,7 +2449,7 @@ void	Memb_print_form_token( sys_scatter *scat )
             return;
         }
 
-        if (num_bytes == scat->elements[scat_index].len )
+        if (num_bytes == (int) scat->elements[scat_index].len )
         {
             num_bytes = 0;
             scat_index++;
@@ -2597,7 +2616,7 @@ void	Memb_transitional( void )
 		    proc_id = Cn->segments[i].procs[j]->id;
 		    for( k=0; k < Commit_set.num_pending; k++ )
 		    {
-			if( Commit_set.members[k] == proc_id )
+			if( Commit_set.members[k] == (int32) proc_id )
 			{
                                 if ( Conf_append_id_to_seg( &Trans_membership.segments[i], proc_id) == -1)
                                         Alarmp( SPLOG_FATAL, EXIT, "Memb_transitional: Commit_set has member %u for trans who doesn't exist\n", proc_id);
@@ -2620,7 +2639,7 @@ void	Memb_transitional( void )
 		    proc_id = Cn->segments[i].procs[j]->id;
 		    for( k=0; k < Commit_set.num_members; k++ )
 		    {
-			if( Commit_set.members[k] == proc_id )
+			if( Commit_set.members[k] == (int32) proc_id )
 			{
                                 if ( Conf_append_id_to_seg(&Commit_membership.segments[i], proc_id) == -1)
                                         Alarmp( SPLOG_FATAL, EXIT, "Memb_transitional: Commit_set has member %u who doesn't exist\n", proc_id);
@@ -2647,7 +2666,7 @@ void	Memb_regular( void )
 
         Commit_set.num_pending = 1;
         Commit_set.num_members = 1;
-        Commit_set.members[0] = My.id;
+        Commit_set.members[0] = (int32) My.id;
 
 	GlobalStatus.num_procs = 0;
 	GlobalStatus.num_segments = 0;

@@ -634,7 +634,7 @@ int	Net_recv ( sp_channel fd, sys_scatter *scat )
           return( 0 );
         }
 
-        if ( pack_ptr->conf_hash != Cn->hash_code )
+        if ( (int32u) pack_ptr->conf_hash != Cn->hash_code )
         {
           Alarmp( SPLOG_WARNING, NETWORK, "Net_recv: ignoring msg from different spread configuration; hash (%u) != local hash (%u); from [%s]:%u on channel %d\n",
                   (unsigned) pack_ptr->conf_hash, (unsigned) Cn->hash_code, SPU_ADDR_NTOP(&src_addr), (unsigned) spu_addr_ip_get_port(&src_addr), fd);
@@ -662,7 +662,7 @@ int	Net_recv ( sp_channel fd, sys_scatter *scat )
           return Net_handle_monitor(scat, src_addr);
         }
           
-	if ( pack_ptr->transmiter_id == My.id )             /* no need to return my own msgs */
+	if ( pack_ptr->transmiter_id == (int32) My.id )             /* no need to return my own msgs */
         {
           if ( ALARMP_NEEDED( SPLOG_DEBUG, NETWORK ) ) Alarmp( SPLOG_DEBUG, NETWORK, "Net_recv: ignoring msg from myself.\n" );
           return( 0 );
@@ -795,9 +795,9 @@ int	Net_recv_token( sp_channel fd, sys_scatter *scat )
         if (scat->num_elements <= 0 || scat->elements[0].len < sizeof(token_header))
           Alarmp(SPLOG_FATAL, NETWORK, "Net_recv_token: BUG! Scatter is too small for token header!\n");
         
-        for (i = 0; i < Num_token_channels && fd != Token_channel[i]; ++i);
+        for (i = 0; i < (size_t) Num_token_channels && fd != Token_channel[i]; ++i);
 
-        if (i == Num_token_channels)
+        if (i == (size_t) Num_token_channels)
           Alarm(EXIT, "Net_recv_token: Listening and received packet on non-token channel %d\n", fd);
 
 	received_bytes = DL_recvfrom_gen( fd, scat, &src_addr );
@@ -828,7 +828,7 @@ int	Net_recv_token( sp_channel fd, sys_scatter *scat )
         }
         */
         
-        if (token_ptr->conf_hash != Cn->hash_code)
+        if ((int32u) token_ptr->conf_hash != Cn->hash_code)
         {
           Alarmp( SPLOG_INFO, NETWORK, "Net_recv_token: ignoring token from different spread configuration; hash (%u) != local hash (%u); from [%s]:%u on channel %d\n",
                   (unsigned) token_ptr->conf_hash, (unsigned) Cn->hash_code, SPU_ADDR_NTOP(&src_addr), (unsigned) spu_addr_ip_get_port(&src_addr), fd);
@@ -984,6 +984,8 @@ void    Net_clear_partition(void)
 
 static	void	Clear_partition_cb(int dummy, void *dummy_p)
 {
+        (void) dummy;
+        (void) dummy_p;
         Net_clear_partition();
 }
 

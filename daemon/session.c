@@ -464,11 +464,13 @@ void	Sess_set_active_threshold()
 
 void    Sess_block_user(int xxx)
 {
+        (void) xxx;
         Alarm(EXIT, "Sess_block_user: NOT IMPLEMENTED!\n");
 }
 
 void    Sess_unblock_user(int xxx)
 {
+        (void) xxx;
         Alarm(EXIT, "Sess_unblock_user: NOT IMPLEMENTED!\n");
 }
 
@@ -526,11 +528,14 @@ static	void	Sess_detach_accept()
 
 void	Sess_accept_continue2(int d1, void *d2)
 {
+        (void) d1;
+        (void) d2;
 	Sess_accept_continue(0,0,NULL);
 } 
 
 static	void	Sess_accept( mailbox mbox, int is_unix, void *dummy )
 {
+        (void) dummy;
         socklen_t		addr_len = sizeof(Sessions[MAX_SESSIONS].addr);
         sockopt_len_t           onlen;
 	sp_time			accept_delay;
@@ -620,6 +625,9 @@ static	void	Sess_accept( mailbox mbox, int is_unix, void *dummy )
 
 void	Sess_accept_continue(mailbox d1, int d2, void *d3)
 {
+        (void) d1;
+        (void) d2;
+        (void) d3;
 	char			response;
 	int			legal_private_name;
 	int			unique_private_name;
@@ -865,6 +873,8 @@ void	Sess_accept_continue(mailbox d1, int d2, void *d3)
 
 static void    Sess_recv_client_auth(mailbox mbox, int dummy, void *dummy_p)
 {
+        (void) dummy;
+        (void) dummy_p;
         int         ret, i, ioctl_cmd, ses;
         char        auth_name[MAX_AUTH_NAME * MAX_AUTH_METHODS];
         void        (*auth_open)(struct session_auth_info *);
@@ -1083,6 +1093,7 @@ void    Sess_session_authorized(int ses)
 
 static  int     Sess_validate_read_header( mailbox mbox, int ses, int head_size, message_header *head_ptr)
 {
+        (void) mbox;
 	char		private_name[MAX_PRIVATE_NAME+1];
 	char		proc_name[MAX_PROC_NAME];
         int             ret, type_bits, memb_bits;
@@ -1144,17 +1155,22 @@ static  int     Sess_validate_read_header( mailbox mbox, int ses, int head_size,
         return( 0 );
 }
 
-static	void	Sess_read( mailbox mbox, int dummy, void *d2 )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void	Sess_read( mailbox mbox, int dummy, void *d2 )
 {
-	message_header	*head_ptr, *msg_head;
-        message_obj     *msg;
-        scatter         *scat;
-	down_link	*down_ptr;
-	int		packet_index, byte_index, to_read;
-	int             len, remain, ret;
-        int             head_size, data_frag_len;
-        int             ses, ioctl_cmd;
-        char            *head_cbuf;
+        (void) dummy;
+        (void) d2;
+   message_header	*head_ptr, *msg_head;
+   message_obj     *msg;
+   scatter         *scat;
+   down_link	*down_ptr;
+   int		packet_index, byte_index, to_read;
+   int             len, remain, ret;
+   int             head_size, data_frag_len;
+   int             ses, ioctl_cmd;
+   char            *head_cbuf;
 #if 0
 #  ifndef ARCH_SCATTER_NONE
 static  struct  msghdr  msgh;
@@ -1270,399 +1286,431 @@ static  struct  msghdr  msgh;
 	ioctl_cmd = 1;
 	ret = ioctl( mbox, FIONBIO, &ioctl_cmd);
 
-        data_frag_len = Message_get_data_fragment_len();
-        scat = Message_get_data_scatter(msg);
-	remain = ( head_ptr->data_len + MAX_GROUP_NAME*head_ptr->num_groups )  - Sessions[ses].read.total_bytes;
+    data_frag_len = Message_get_data_fragment_len();
+    
+    scat = Message_get_data_scatter(msg);
+    
+	remain = ( head_ptr->data_len +
+               MAX_GROUP_NAME*head_ptr->num_groups ) - Sessions[ses].read.total_bytes;
+
 	for(  ; remain > 0; remain -= ret )
 	{
-		packet_index = Sessions[ses].read.cur_element;
-		byte_index   = Sessions[ses].read.cur_byte;
-                if (packet_index >= (int) scat->num_elements) 
-                {
-                        /* We are beginning a new fragment -- so allocate it */
-                        assert(byte_index == 0);
-                        Message_add_scat_element(msg);
-                }
-		to_read = ( data_frag_len - byte_index );
-		if( to_read > remain ) to_read = remain;
-		ret = recv( mbox, &scat->elements[packet_index].buf[byte_index],
-				to_read, 0 );
-                if( ret  == to_read )
-                {
-                        Sessions[ses].read.cur_byte = 0;
-                        Sessions[ses].read.cur_element++;
-                        Sessions[ses].read.total_bytes += ret;
-                } else  if (ret > 0 ) {
-                        Sessions[ses].read.cur_byte += ret;
-                        Sessions[ses].read.total_bytes += ret;
-                        ioctl_cmd = 0;
-                        ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
-                        return;
-                } else {
-                        if ( (ret == -1) && ((sock_errno == EINTR) || (sock_errno == EAGAIN) || (sock_errno == EWOULDBLOCK)) ) {
-                                ioctl_cmd = 0;
-                                ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
-                                return;
-                        }
-			Alarm( SESSION, "Sess_read: failed receiving message on session %d, ret is %d: error: %s\n", mbox, ret, sock_strerror(sock_errno) );
-			Alarm( SESSION, "Sess_read: failed recv msg more info: len read: %d, remain: %d, to_read: %d, pkt_index: %d, b_index: %d, scat_nums: %d\n",Sessions[ses].read.total_bytes, remain, to_read, packet_index, byte_index, scat->num_elements );
-			Sess_kill( mbox );
-                        ioctl_cmd = 0;
-                        ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
-			return;
-		}
+       packet_index = Sessions[ses].read.cur_element;
+       byte_index   = Sessions[ses].read.cur_byte;
+       
+       if (packet_index >= (int) scat->num_elements) 
+       {
+          /* We are beginning a new fragment -- so allocate it */
+          assert(byte_index == 0);
+          Message_add_scat_element(msg);
+       }
+       
+       to_read = ( data_frag_len - byte_index );
+       if( to_read > remain ) to_read = remain;
+       ret = recv( mbox, &scat->elements[packet_index].buf[byte_index],
+                   to_read, 0 );
+       
+       if( ret  == to_read )
+       {
+          Sessions[ses].read.cur_byte = 0;
+           Sessions[ses].read.cur_element++;
+           Sessions[ses].read.total_bytes += ret;
+       }
+       else  if (ret > 0 )
+       {
+          Sessions[ses].read.cur_byte += ret;
+          Sessions[ses].read.total_bytes += ret;
+          ioctl_cmd = 0;
+          ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
+          return;
+       }
+       else
+       {
+          if ( (ret == -1) && ((sock_errno == EINTR) || (sock_errno == EAGAIN) || (sock_errno == EWOULDBLOCK)) )
+          {
+             ioctl_cmd = 0;
+             ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
+             return;
+          }
+          
+          Alarm( SESSION, "Sess_read: failed receiving message on session %d, ret is %d: error: %s\n", mbox, ret, sock_strerror(sock_errno) );
+          Alarm( SESSION, "Sess_read: failed recv msg more info: len read: %d, remain: %d, to_read: %d, pkt_index: %d, b_index: %d, scat_nums: %d\n",Sessions[ses].read.total_bytes, remain, to_read, packet_index, byte_index, scat->num_elements );
+          Sess_kill( mbox );
+          ioctl_cmd = 0;
+          ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
+          return;
+       }
 	}
-
-        /* We now have a complete message */
-        ioctl_cmd = 0;
-        ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
-
-        /* reset active read_mess to empty */
-        Message_reset_current_location(&(Sessions[ses].read));
-        Sessions[ses].read.in_mess_head = 1;
-        Sessions[ses].read_mess = NULL;
-
-        Message_element_len_fixup(msg);
-
+    
+    /* We now have a complete message */
+    ioctl_cmd = 0;
+    ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);        
+    
+    /* reset active read_mess to empty */
+    Message_reset_current_location(&(Sessions[ses].read));
+    Sessions[ses].read.in_mess_head = 1;
+    Sessions[ses].read_mess = NULL;
+    
+    Message_element_len_fixup(msg);
+    
 #ifdef  PROBE_LATENCY
-        if (Is_latency_mess( head_ptr->type ) )
-        {
-                int32u          initial_offset, htime_offset;
-                int32u          *p_time_offset;
-                sp_time         cur_time, ncur_time;
-
-                initial_offset = MAX_GROUP_NAME*head_ptr->num_groups + head_size;
-                p_time_offset = (int32u *) &msg->body.elements[0].buf[initial_offset];
-                htime_offset = ntohl(*p_time_offset);
-                Alarm(SESSION, "Sess_read: Msg Data at %d with time_offset %u \n", initial_offset, htime_offset);
-                cur_time = E_get_time();
-                ncur_time.sec = htonl(cur_time.sec);
-                ncur_time.usec = htonl(cur_time.usec);
-                memcpy(&(msg->body.elements[0].buf[htime_offset + initial_offset]), &ncur_time, sizeof(sp_time));
-                Alarm(SESSION, "Sess_read: timestamped time (%d, %d) in byte %d of message\n", cur_time.sec, cur_time.usec, htime_offset);
-                *p_time_offset = htonl(htime_offset + sizeof(sp_time) );
-        }
+    if (Is_latency_mess( head_ptr->type ) )
+    {
+       int32u          initial_offset, htime_offset;
+       int32u          *p_time_offset;
+       sp_time         cur_time, ncur_time;
+       
+       initial_offset = MAX_GROUP_NAME*head_ptr->num_groups + head_size;
+       p_time_offset = (int32u *) &msg->body.elements[0].buf[initial_offset];
+       htime_offset = ntohl(*p_time_offset);
+       Alarm(SESSION, "Sess_read: Msg Data at %d with time_offset %u \n", initial_offset, htime_offset);
+       cur_time = E_get_time();
+       ncur_time.sec = htonl(cur_time.sec);
+       ncur_time.usec = htonl(cur_time.usec);
+       memcpy(&(msg->body.elements[0].buf[htime_offset + initial_offset]), &ncur_time, sizeof(sp_time));
+       Alarm(SESSION, "Sess_read: timestamped time (%d, %d) in byte %d of message\n", cur_time.sec, cur_time.usec, htime_offset);
+       *p_time_offset = htonl(htime_offset + sizeof(sp_time) );
+    }
 #endif  /* PROBE_LATENCY */
-
+    
         /* Do ACM access control checks */
         /* Note, disconnects (Is_kill_mess) are not limited. Someone can always cut themselves off */
-        if ( Is_leave_mess( head_ptr->type ) )
+    if ( Is_leave_mess( head_ptr->type ) )
+    {
+       char *groups_ptr;
+       int decision;
+       groups_ptr = Message_get_first_group( msg );
+       decision = Sessions[ses].acp_ops.leave_group( head_ptr->private_group_name, groups_ptr, NULL);
+       if (decision != ACM_ACCESS_ALLOWED)
+       {
+          head_ptr->type = (head_ptr->type & ~LEAVE_MESS);
+          head_ptr->type |= CAUSED_BY_LEAVE;
+          Sess_create_reject_message( msg );
+          Sess_deliver_reject( msg );
+          return;
+       }
+    }
+    if ( Is_join_mess( head_ptr->type ) )
+    {
+       char *groups_ptr;
+       int decision;
+       groups_ptr = Message_get_first_group( msg );
+       
+       /* Make sure we don't let a join happen if the limit has been reached. */
+		if( G_get_num_local( groups_ptr ) == MAX_LOCAL_GROUP_MEMBERS )
         {
-                char *groups_ptr;
-                int decision;
-                groups_ptr = Message_get_first_group( msg );
-                decision = Sessions[ses].acp_ops.leave_group( head_ptr->private_group_name, groups_ptr, NULL);
-                if (decision != ACM_ACCESS_ALLOWED)
-                {
-                        head_ptr->type = (head_ptr->type & ~LEAVE_MESS);
-                        head_ptr->type |= CAUSED_BY_LEAVE;
-                        Sess_create_reject_message( msg );
-                        Sess_deliver_reject( msg );
-                        return;
-                }
+           Alarm( PRINT, "Sess_read: Attempt by session %s to join group %s " 
+                  "failed: too many local members.\n", head_ptr->private_group_name, groups_ptr );
+           head_ptr->type = (head_ptr->type & ~JOIN_MESS);
+           head_ptr->type |= CAUSED_BY_JOIN;
+           Sess_create_reject_message( msg );
+           Sess_deliver_reject( msg );
+           return;
         }
-        if ( Is_join_mess( head_ptr->type ) )
+        
+        decision = Sessions[ses].acp_ops.join_group( head_ptr->private_group_name, groups_ptr, NULL);
+        if (decision != ACM_ACCESS_ALLOWED)
         {
-                char *groups_ptr;
-                int decision;
-                groups_ptr = Message_get_first_group( msg );
-
-                /* Make sure we don't let a join happen if the limit has been reached. */
-		if( G_get_num_local( groups_ptr ) == MAX_LOCAL_GROUP_MEMBERS ) {
-                        Alarm( PRINT, "Sess_read: Attempt by session %s to join group %s " 
-                               "failed: too many local members.\n", head_ptr->private_group_name, groups_ptr );
-                        head_ptr->type = (head_ptr->type & ~JOIN_MESS);
-                        head_ptr->type |= CAUSED_BY_JOIN;
-                        Sess_create_reject_message( msg );
-                        Sess_deliver_reject( msg );
-                        return;
-                }
-
-                decision = Sessions[ses].acp_ops.join_group( head_ptr->private_group_name, groups_ptr, NULL);
-                if (decision != ACM_ACCESS_ALLOWED)
-                {
-                        head_ptr->type = (head_ptr->type & ~JOIN_MESS);
-                        head_ptr->type |= CAUSED_BY_JOIN;
-                        Sess_create_reject_message( msg );
-                        Sess_deliver_reject( msg );
-                        return;
-                }
+           head_ptr->type = (head_ptr->type & ~JOIN_MESS);
+           head_ptr->type |= CAUSED_BY_JOIN;
+           Sess_create_reject_message( msg );
+           Sess_deliver_reject( msg );
+           return;
         }
-        if ( Is_only_regular_mess( head_ptr->type ) )
-        {
-                char *groups_ptr;
-                char target_groups[MAX_GROUPS_PER_MESSAGE][MAX_GROUP_NAME];
-                int decision, num_p2p_dest;
-                groups_ptr = Message_get_groups_array( msg );
-                num_p2p_dest = Sess_get_p2p_dests(head_ptr->num_groups, (char (*)[MAX_GROUP_NAME])groups_ptr, target_groups);
-                if (num_p2p_dest)
-                {
-                        decision = Sessions[ses].acp_ops.p2p_send( head_ptr->private_group_name, num_p2p_dest, target_groups, head_ptr->type,  ( (head_ptr->hint >> 8) & 0x0000ffff) );
-                        if (decision != ACM_ACCESS_ALLOWED)
-                        {
-                                Sess_create_reject_message( msg );
-                                Sess_deliver_reject( msg );
-                                return;
-                        }
-                }
-                if (head_ptr->num_groups > num_p2p_dest)
-                {
-                        decision = Sessions[ses].acp_ops.mcast_send( head_ptr->private_group_name, head_ptr->num_groups, (char (*)[MAX_GROUP_NAME])groups_ptr, head_ptr->type, ( (head_ptr->hint >> 8) & 0x0000ffff) );
-                        if (decision != ACM_ACCESS_ALLOWED)
-                        {
-                                Sess_create_reject_message( msg );
-                                Sess_deliver_reject( msg );
-                                return;
-                        }
-                }
-        }
-
+    }
+    if ( Is_only_regular_mess( head_ptr->type ) )
+    {
+       char *groups_ptr;
+       char target_groups[MAX_GROUPS_PER_MESSAGE][MAX_GROUP_NAME];
+       int decision, num_p2p_dest;
+       groups_ptr = Message_get_groups_array( msg );
+       num_p2p_dest = Sess_get_p2p_dests(head_ptr->num_groups, (char (*)[MAX_GROUP_NAME])groups_ptr, target_groups);
+       if (num_p2p_dest)
+       {
+          decision = Sessions[ses].acp_ops.p2p_send( head_ptr->private_group_name, num_p2p_dest, target_groups, head_ptr->type,  ( (head_ptr->hint >> 8) & 0x0000ffff) );
+          if (decision != ACM_ACCESS_ALLOWED)
+          {
+             Sess_create_reject_message( msg );
+             Sess_deliver_reject( msg );
+             return;
+          }
+       }
+       if (head_ptr->num_groups > num_p2p_dest)
+       {
+          decision = Sessions[ses].acp_ops.mcast_send( head_ptr->private_group_name, head_ptr->num_groups, (char (*)[MAX_GROUP_NAME])groups_ptr, head_ptr->type, ( (head_ptr->hint >> 8) & 0x0000ffff) );
+          if (decision != ACM_ACCESS_ALLOWED)
+          {
+             Sess_create_reject_message( msg );
+             Sess_deliver_reject( msg );
+             return;
+          }
+       }
+    }
+    
 	/* create new down_link and big_scatter */
-        down_ptr = Prot_Create_Down_Link(msg, Message_get_packet_type(head_ptr->type), mbox, 0);
-        if (down_ptr == NULL)
-        {
-                Alarm( SESSION, "Sess_read: Session has illegal message type 0x%x\n", head_ptr->type);
-                Sess_kill( mbox );
-                return;
-        }
-        down_ptr->mess = msg;
-        msg_head = Message_get_message_header(down_ptr->mess);
-
-        if (Is_kill_mess(msg_head->type) )
-        {       
-                /* We are going to overwrite the group that is sent from the library. 
-                 * it is not needed for kill messages, so we shrink the data field to ignore it
-                 */
-                len = Message_kill_mess_fixup(down_ptr->mess, Sessions[ses].read.total_bytes - MAX_GROUP_NAME, mbox);
-
-                /* A bug in both 3.13 and 4 I think is that if we get a DISCONNECT message
+    down_ptr = Prot_Create_Down_Link(msg, Message_get_packet_type(head_ptr->type), mbox, 0);
+    if (down_ptr == NULL)
+    {
+       Alarm( SESSION, "Sess_read: Session has illegal message type 0x%x\n", head_ptr->type);
+       Sess_kill( mbox );
+       return;
+    }
+    down_ptr->mess = msg;
+    msg_head = Message_get_message_header(down_ptr->mess);
+    
+    if (Is_kill_mess(msg_head->type) )
+    {       
+       /* We are going to overwrite the group that is sent from the library. 
+        * it is not needed for kill messages, so we shrink the data field to ignore it
+        */
+       len = Message_kill_mess_fixup(down_ptr->mess, Sessions[ses].read.total_bytes - MAX_GROUP_NAME, mbox);
+       
+       /* A bug in both 3.13 and 4 I think is that if we get a DISCONNECT message
                  * from the client and we process and deliver that before discovering the
                  * closed socket ourselves and calling Sess_kill(), then the session
                  * is in the wrong state and we will crash when we try to finish delivery.
                  */
-                Log_sess_disconnect( Sessions[ses].mbox, &Sessions[ses].addr, Sessions[ses].name,
-                                     Sessions[ses].num_mess );
-
-                Sess_clear_session( &Sessions[ses] );
-                
-                Alarm( SESSION, "Sess_read: disconnecting session %s ( mailbox %d )\n",Sessions[ses].name, mbox );
-        }
-
+       Log_sess_disconnect( Sessions[ses].mbox, &Sessions[ses].addr, Sessions[ses].name,
+                            Sessions[ses].num_mess );
+       
+       Sess_clear_session( &Sessions[ses] );
+       
+       Alarm( SESSION, "Sess_read: disconnecting session %s ( mailbox %d )\n",Sessions[ses].name, mbox );
+    }
+    
 	Alarm( SESSION, "Sess_read: queueing message of type %d with len %d to the protocol\n",
-		down_ptr->type, Sessions[ses].read.total_bytes );
+           down_ptr->type, Sessions[ses].read.total_bytes );
 	Prot_new_message( down_ptr, Sessions[ses].down_queue );
 }
 
-static  int     Sess_get_p2p_dests( int num_groups, char groups[][MAX_GROUP_NAME], char dests[][MAX_GROUP_NAME] )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static int Sess_get_p2p_dests( int num_groups, char groups[][MAX_GROUP_NAME], char dests[][MAX_GROUP_NAME] )
 {
-        int i, num_p2p_targets = 0;
-	for( i=0; i < num_groups; i++ )
-	{
-		if( groups[i][0] == '#' )
-		{
-			/* private group */
-                        memcpy( dests[num_p2p_targets], groups[i], MAX_GROUP_NAME);
-                        num_p2p_targets++;
-		}
-        }
-        return( num_p2p_targets );
+   int i, num_p2p_targets = 0;
+   for( i=0; i < num_groups; i++ )
+   {
+      if( groups[i][0] == '#' )
+      {
+         /* private group */
+         memcpy( dests[num_p2p_targets], groups[i], MAX_GROUP_NAME);
+         num_p2p_targets++;
+      }
+   }
+   return( num_p2p_targets );
 }
 
-/* Take a message received from a client and change it into the form of
- * a reject message. Destination groups, user data, mess_type and type field
- * are all preserved to give the sender information about what message was 
- * rejected.
- */
-static  void    Sess_create_reject_message ( message_obj *msg )
+//----------------------------------------------------------------------
+// Take a message received from a client and change it into the form of
+// a reject message. Destination groups, user data, mess_type and type field
+// are all preserved to give the sender information about what message was 
+// rejected.
+//----------------------------------------------------------------------
+static void Sess_create_reject_message ( message_obj *msg )
 {
-        message_header  *head_ptr;
-        int32u          old_type;
-
-        head_ptr = Message_get_message_header(msg);
-
-        old_type = head_ptr->type;
-        head_ptr->type = REJECT_MESS;
-        head_ptr->type = Set_endian( head_ptr->type );
-        /* If original message was SELF_DISCARD, then maintain that state */
-        if (Is_self_discard( old_type) ) head_ptr->type |= SELF_DISCARD;
-
+   
+   message_header  *head_ptr;
+   int32u          old_type;
+   
+   head_ptr = Message_get_message_header(msg);
+   
+   old_type = head_ptr->type;
+   head_ptr->type = REJECT_MESS;
+   head_ptr->type = Set_endian( head_ptr->type );
+   /* If original message was SELF_DISCARD, then maintain that state */
+   if (Is_self_discard( old_type) ) head_ptr->type |= SELF_DISCARD;
+   
         Message_add_oldtype_to_reject( msg, old_type );
-
+        
         Alarm( PRINT, "Sess_create_reject_mess: Created Reject for sender %s type 0x%x oldtype 0x%x for first group %s\n", 
                head_ptr->private_group_name, head_ptr->type, old_type, Message_get_first_group( msg ) );
         return;
 }
 
-static  void    Sess_deliver_reject( message_obj *msg )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void Sess_deliver_reject( message_obj *msg )
 {
-        message_link    *mess_link;
-
-        mess_link = new(MESSAGE_LINK);
-        if (mess_link == NULL ) {
-                Alarm(EXIT, "Sess_deliver_reject: Failed to allocate a new MESSAGE_LINK.\n");
-                return;
-        }
-        mess_link->mess = msg;
-        mess_link->next = NULL;
-        
-        Sess_deliver_message( mess_link );
-
-        return;
+   message_link    *mess_link;
+   
+   mess_link = new(MESSAGE_LINK);
+   if (mess_link == NULL ) {
+      Alarm(EXIT, "Sess_deliver_reject: Failed to allocate a new MESSAGE_LINK.\n");
+      return;
+   }
+   mess_link->mess = msg;
+   mess_link->next = NULL;
+   
+   Sess_deliver_message( mess_link );
+   
+   return;
 }
 
-void    Sess_write( int ses, message_link *mess_link, int *needed )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void Sess_write( int ses, message_link *mess_link, int *needed )
 {
-        message_obj     *msg;
-	message_link	*tmp_link;
-        scatter         *scat;
-	int		ioctl_cmd;
-	int 		ret;
-	int		total_to_send;
-	int		len_sent, first_data_len;
-        char            *first_data_ptr;
-	int		i;
-        message_header  *head_ptr;
-
-	if( !Is_op_session( Sessions[ses].status ) ) return;
-
-	if( Sessions[ses].num_mess >= Conf_get_max_session_messages() )
-	{
-		Alarm( SESSION, 
-			"Sess_write: killing mbox %d for not reading\n",
-			Sessions[ses].mbox );
-		Sess_kill( Sessions[ses].mbox );
-		return;
-	}
-
-	if( Sessions[ses].num_mess > 0 )
-	{
-		Sess_badger( Sessions[ses].mbox );
-	}
-
-	msg = mess_link->mess;
-        Obj_Inc_Refcount(msg);
-        scat = Message_get_data_scatter(msg);
-
-	for( total_to_send=0, i=0; i < (int) scat->num_elements; i++ )
-		total_to_send += scat->elements[i].len;
-
-        /* since also sending message_header */
-        total_to_send += Message_get_non_body_header_size();
-
-        head_ptr = Message_get_message_header(msg);
+   message_obj     *msg;
+   message_link	*tmp_link;
+   scatter         *scat;
+   int		ioctl_cmd;
+   int 		ret;
+   int		total_to_send;
+   int		len_sent, first_data_len;
+   char            *first_data_ptr;
+   int		i;
+   message_header  *head_ptr;
+   
+   if( !Is_op_session( Sessions[ses].status ) ) return;
+   
+   if( Sessions[ses].num_mess >= Conf_get_max_session_messages() )
+   {
+      Alarm( SESSION, 
+             "Sess_write: killing mbox %d for not reading\n",
+             Sessions[ses].mbox );
+      Sess_kill( Sessions[ses].mbox );
+      return;
+   }
+   
+   if( Sessions[ses].num_mess > 0 )
+   {
+      Sess_badger( Sessions[ses].mbox );
+   }
+   
+   msg = mess_link->mess;
+   Obj_Inc_Refcount(msg);
+   scat = Message_get_data_scatter(msg);
+   
+   for( total_to_send=0, i=0; i < (int) scat->num_elements; i++ )
+      total_to_send += scat->elements[i].len;
+   
+   /* since also sending message_header */
+   total_to_send += Message_get_non_body_header_size();
+   
+   head_ptr = Message_get_message_header(msg);
 #ifdef  PROBE_LATENCY
-        if (Is_latency_mess( head_ptr->type ) )
-        {
-                int32u          initial_offset, htime_offset;
-                int32u          *p_time_offset;
-                sp_time         cur_time, ncur_time;
-
-                initial_offset = MAX_GROUP_NAME*head_ptr->num_groups;
-                p_time_offset = (int32u *) &msg->body.elements[0].buf[initial_offset];
-                htime_offset = ntohl(*p_time_offset);
-                Alarm(SESSION, "Sess_write: Msg Data at %d with timeoffset %u\n", initial_offset, htime_offset);
-                cur_time = E_get_time();
-                ncur_time.sec = htonl(cur_time.sec);
-                ncur_time.usec = htonl(cur_time.usec);
-                memcpy(&(msg->body.elements[0].buf[htime_offset + initial_offset]), &ncur_time, sizeof(sp_time));
-                Alarm(SESSION, "Sess_write: timestamped time (%d, %d) in byte %d of message\n", cur_time.sec, cur_time.usec, htime_offset);
-                *p_time_offset = htonl(htime_offset + sizeof(sp_time) );
-        }
+   if (Is_latency_mess( head_ptr->type ) )
+   {
+      int32u          initial_offset, htime_offset;
+      int32u          *p_time_offset;
+      sp_time         cur_time, ncur_time;
+      
+      initial_offset = MAX_GROUP_NAME*head_ptr->num_groups;
+      p_time_offset = (int32u *) &msg->body.elements[0].buf[initial_offset];
+      htime_offset = ntohl(*p_time_offset);
+      Alarm(SESSION, "Sess_write: Msg Data at %d with timeoffset %u\n", initial_offset, htime_offset);
+      cur_time = E_get_time();
+      ncur_time.sec = htonl(cur_time.sec);
+      ncur_time.usec = htonl(cur_time.usec);
+      memcpy(&(msg->body.elements[0].buf[htime_offset + initial_offset]), &ncur_time, sizeof(sp_time));
+      Alarm(SESSION, "Sess_write: timestamped time (%d, %d) in byte %d of message\n", cur_time.sec, cur_time.usec, htime_offset);
+      *p_time_offset = htonl(htime_offset + sizeof(sp_time) );
+   }
 #endif
-	len_sent = 0;
-	if( Sessions[ses].num_mess == 0 )
-	{
-		/* set file descriptor to non blocking */
-		ioctl_cmd = 1;
-		ret = ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);
-
-                /* Send the first part of message which must be handled specially */
-                ret = send(Sessions[ses].mbox, (char *) head_ptr, 
-                           sizeof(message_header), 0);
-                if ( ret > 0 ) len_sent += ret;
-                if ( ret != sizeof(message_header) )
-                {
-                        goto end_write;
-                }
-                /* Send the first data of message which must be handled specially */
-                first_data_ptr = Message_get_first_data_ptr(msg);
-                first_data_len = Message_get_first_data_len(msg);
-                ret = send(Sessions[ses].mbox, first_data_ptr, 
-                           first_data_len, 0);
-                if ( ret > 0 ) len_sent += ret;
-                if ( ret != first_data_len )
-                {
-                        goto end_write;
-                }
-		/* send the message after first buffer*/
+   len_sent = 0;
+   if( Sessions[ses].num_mess == 0 )
+   {
+      /* set file descriptor to non blocking */
+      ioctl_cmd = 1;
+      ret = ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);
+      
+      /* Send the first part of message which must be handled specially */
+      ret = send(Sessions[ses].mbox, (char *) head_ptr, 
+                 sizeof(message_header), 0);
+      if ( ret > 0 ) len_sent += ret;
+      if ( ret != sizeof(message_header) )
+      {
+         goto end_write;
+      }
+      /* Send the first data of message which must be handled specially */
+      first_data_ptr = Message_get_first_data_ptr(msg);
+      first_data_len = Message_get_first_data_len(msg);
+      ret = send(Sessions[ses].mbox, first_data_ptr, 
+                 first_data_len, 0);
+      if ( ret > 0 ) len_sent += ret;
+      if ( ret != first_data_len )
+      {
+         goto end_write;
+      }
+      /* send the message after first buffer*/
 		for( i=1; i < (int) scat->num_elements; i++ )
 		{
-			ret = send( Sessions[ses].mbox, scat->elements[i].buf, 
-							scat->elements[i].len, 0);
-			if( ret > 0 ) len_sent += ret;
-			if( ret != scat->elements[i].len )
-			{ 
-				break;
-			}
+           ret = send( Sessions[ses].mbox, scat->elements[i].buf, 
+                       scat->elements[i].len, 0);
+           if( ret > 0 ) len_sent += ret;
+           if( ret != (int) scat->elements[i].len )
+           { 
+              break;
+           }
 		}
 		/* set file descriptor back to blocking */
-        end_write:
+     end_write:
 		ioctl_cmd = 0;
 		ret = ioctl( Sessions[ses].mbox, FIONBIO, &ioctl_cmd);
-
-	}
-
-	if( len_sent < total_to_send )
-	{
-		/* this message has to be linked */
+        
+   }
+   
+   if( len_sent < total_to_send )
+   {
+      /* this message has to be linked */
 		if( *needed )
 		{
-			/* create a copy of mess_link and link it */
-			tmp_link = new(MESSAGE_LINK);
-                        if (tmp_link == NULL ) {
-                                Alarm(EXIT, "Sess_write: Failed to allocate a new MESSAGE_LINK.\n");
-                                return;
-                        }
-                        tmp_link->mess = Message_copy_message(msg);
-			++*needed;
-		}else{
-			/* should link mess_link itself */
-			tmp_link = mess_link;
-			*needed=1;
+           /* create a copy of mess_link and link it */
+           tmp_link = new(MESSAGE_LINK);
+           if (tmp_link == NULL ) {
+              Alarm(EXIT, "Sess_write: Failed to allocate a new MESSAGE_LINK.\n");
+              return;
+           }
+           tmp_link->mess = Message_copy_message(msg);
+           ++*needed;
+		}
+        else
+        {
+           /* should link mess_link itself */
+           tmp_link = mess_link;
+           *needed=1;
 		}
 		/* link the message */
 		tmp_link->next = 0;
 		if( Sessions[ses].num_mess == 0 )
 		{
-			Sessions[ses].first = tmp_link;
-			Sessions[ses].last = tmp_link;
-			/* setting cur_element and cur_byte */
-                        Message_calculate_current_location(tmp_link->mess, len_sent, &(Sessions[ses].write) );
-
-			/* We will need to badger this guy */
-			E_queue( Sess_badger_TO, Sessions[ses].mbox, NULL, Badger_timeout );
-			E_attach_fd( Sessions[ses].mbox, WRITE_FD, Sess_badger_FD, 0, NULL, LOW_PRIORITY );
-		}else{
-			/* This guy was already badgered */
-			Sessions[ses].last->next = tmp_link;
-			Sessions[ses].last = tmp_link;
+           Sessions[ses].first = tmp_link;
+           Sessions[ses].last = tmp_link;
+           /* setting cur_element and cur_byte */
+           Message_calculate_current_location(tmp_link->mess, len_sent, &(Sessions[ses].write) );
+           
+           /* We will need to badger this guy */
+           E_queue( Sess_badger_TO, Sessions[ses].mbox, NULL, Badger_timeout );
+           E_attach_fd( Sessions[ses].mbox, WRITE_FD, Sess_badger_FD, 0, NULL, LOW_PRIORITY );
+		}
+        else
+        {
+           /* This guy was already badgered */
+           Sessions[ses].last->next = tmp_link;
+           Sessions[ses].last = tmp_link;
 		}
 		Sessions[ses].num_mess++;
-	}
-        Message_Dec_Refcount(msg);
+   }
+   Message_Dec_Refcount(msg);
 }
 
-static	void	Sess_badger( mailbox mbox )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void Sess_badger( mailbox mbox )
 {
-	int		ses;
-	message_link	*mess_link;
-	int		able_to_write;
-        message_obj     *msg;
-        scatter         *scat;
-	int		ioctl_cmd;
-	int		bytes_to_send, from;
-	int		i;
-	int		ret;
+   int		ses;
+   message_link	*mess_link;
+   int		able_to_write;
+   message_obj     *msg;
+   scatter         *scat;
+   int		ioctl_cmd;
+   int		bytes_to_send, from;
+   int		i;
+   int		ret;
 
 	Alarm( SESSION, "Sess_badger: for mbox %d\n", mbox );
 	ses = Sess_get_session_index( mbox );
@@ -1746,11 +1794,14 @@ static	void	Sess_badger( mailbox mbox )
 
 static void Sess_badger_TO( mailbox mbox, void *dmy )
 {
+        (void) dmy;
         Sess_badger( mbox );
 }
 
 static void Sess_badger_FD( mailbox mbox, int dmy, void *dmy2 )
 {
+        (void) dmy;
+        (void) dmy2;
         Sess_badger( mbox );
 }
 
@@ -1802,98 +1853,113 @@ static	void	Sess_kill( mailbox mbox )
 	Alarm( SESSION, "Sess_kill: killing session %s ( mailbox %d )\n",Sessions[ses].name, mbox );
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void	Sess_deliver_message( message_link *mess_link )
 {
-static	int		target_sessions[MAX_SESSIONS];
-	int		num_target_sessions;
-	int		source_ses;
-	message_header	*head_ptr;
-        message_obj     *msg;
-        scatter         *scat;
-	char		*target_groups;
-	char		private_name[MAX_PRIVATE_NAME+1];
-	char		proc_name[MAX_PROC_NAME];
-	int		needed;
-	int		i;
+   
+   static	int		target_sessions[MAX_SESSIONS];
+   int		num_target_sessions;
+   int		source_ses;
+   message_header	*head_ptr;
+   message_obj     *msg;
+   char		*target_groups;
+   char		private_name[MAX_PRIVATE_NAME+1];
+   char		proc_name[MAX_PROC_NAME];
+   int		needed;
+   int		i;
 
-	msg = mess_link->mess;
-        Obj_Inc_Refcount(msg);
-	head_ptr = Message_get_message_header(msg);
+   msg = mess_link->mess;
+   Obj_Inc_Refcount(msg);
+   head_ptr = Message_get_message_header(msg);
 
-        Message_endian_correct_message_header(msg);
+   Message_endian_correct_message_header(msg);
 
-	if( Is_join_mess( head_ptr->type ) )
-	{
-		Sess_handle_join( mess_link );
-                Message_Dec_Refcount(msg);
-		return;
-	}
+   if( Is_join_mess( head_ptr->type ) )
+   {
+      Sess_handle_join( mess_link );
+      Message_Dec_Refcount(msg);
+      return;
+   }
 	
-	if( Is_leave_mess( head_ptr->type ) )
-	{
-		Sess_handle_leave( mess_link );
-                Message_Dec_Refcount(msg);
-		return;
-	}
+   if( Is_leave_mess( head_ptr->type ) )
+   {
+      Sess_handle_leave( mess_link );
+      Message_Dec_Refcount(msg);
+      return;
+   }
 
-	if( Is_kill_mess( head_ptr->type ) )
-	{
-		Sess_handle_kill( mess_link );
-                Message_Dec_Refcount(msg);
-		return;
-	}
+   if( Is_kill_mess( head_ptr->type ) )
+   {
+      Sess_handle_kill( mess_link );
+      Message_Dec_Refcount(msg);
+      return;
+   }
 	
-	if( Is_groups_mess( head_ptr->type ) )
-	{
-		G_handle_groups( mess_link );
-                Message_Dec_Refcount(msg);
-		return;
-	}
+   if( Is_groups_mess( head_ptr->type ) )
+   {
+      G_handle_groups( mess_link );
+      Message_Dec_Refcount(msg);
+      return;
+   }
 
-	/* regular message */
+   /* regular message */
 
-	GlobalStatus.message_delivered++;
+   GlobalStatus.message_delivered++;
 
-	/* Setting endian to my endian on the header */
-	head_ptr->type = Set_endian( head_ptr->type );
-        scat = Message_get_data_scatter(msg);
-	/* analyze message  groups to sessions  */
-        if ( Is_reject_mess(head_ptr->type) ) {
-            num_target_sessions = 1;
-            G_private_to_names( head_ptr->private_group_name, private_name, proc_name );
-            target_sessions[0] = Sess_get_session( private_name );
-        } else {
-            target_groups = Message_get_groups_array(msg);
-            num_target_sessions = G_analize_groups( head_ptr->num_groups, 
-                                                    (char (*)[MAX_GROUP_NAME])target_groups, 
-                                                    target_sessions ) ;
-        }
-	/* if self_discard, sender is local and a target then eliminate sender from targets */
-	source_ses = -1;
-	if( num_target_sessions > 0 && Is_self_discard( head_ptr->type ) )
-	{
-		G_private_to_names( head_ptr->private_group_name, private_name, proc_name );
-		if( strcmp( My.name, proc_name ) == 0 )
-		{
-			source_ses = Sess_get_session( private_name );
-		}
-	}
-	needed = 0;
-	for( i = 0; i < num_target_sessions ; i++ )
-	{
-		if( source_ses == target_sessions[i] ) continue; /* self_discard */
-		Sess_write( target_sessions[i], mess_link, &needed );
-	}
+   /* Setting endian to my endian on the header */
+   head_ptr->type = Set_endian( head_ptr->type );
+   /* analyze message  groups to sessions  */
+   if ( Is_reject_mess(head_ptr->type) )
+   {
+      num_target_sessions = 1;
+      G_private_to_names( head_ptr->private_group_name, private_name, proc_name );
+      target_sessions[0] = Sess_get_session( private_name );
+   }
+   else
+   {
+      target_groups = Message_get_groups_array(msg);
+      num_target_sessions = G_analize_groups( head_ptr->num_groups, 
+                                              (char (*)[MAX_GROUP_NAME])target_groups, 
+                                              target_sessions ) ;
+   }
 
-        Message_Dec_Refcount(msg);
-	if( !needed ) Sess_dispose_message( mess_link );
+   /* if self_discard, sender is local and a target then eliminate sender from targets */
+   source_ses = -1;
+   if( num_target_sessions > 0 && Is_self_discard( head_ptr->type ) )
+   {
+      G_private_to_names( head_ptr->private_group_name, private_name, proc_name );
+      if( strcmp( My.name, proc_name ) == 0 )
+      {
+         source_ses = Sess_get_session( private_name );
+      }
+   }
+   
+   needed = 0;
+   
+   for( i = 0; i < num_target_sessions ; i++ )
+   {
+      if( source_ses == target_sessions[i] ) continue; /* self_discard */
+      Sess_write( target_sessions[i], mess_link, &needed );
+   }
+
+   Message_Dec_Refcount(msg);
+   if( !needed ) Sess_dispose_message( mess_link );
+
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void	Sess_deliver_reg_memb( configuration reg_memb, membership_id reg_memb_id )
 {
 	G_handle_reg_memb( reg_memb, reg_memb_id );
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void	Sess_deliver_trans_memb( configuration trans_memb, membership_id trans_memb_id )
 {
 	G_handle_trans_memb( trans_memb, trans_memb_id );

@@ -70,25 +70,43 @@ void permit_init(void)
 
 ACM_ReturnVal  permit_open_connection(char *user)
 {
+        (void) user;
         return(ACM_ACCESS_ALLOWED);
 }
 ACM_ReturnVal  permit_open_monitor(char *user)
 {
+        (void) user;
         return(ACM_ACCESS_ALLOWED);
 }
 ACM_ReturnVal permit_join_group(char *member, char *group, void *dummy_token)
 {
+        (void) member;
+        (void) group;
+        (void) dummy_token;
 	return(ACM_ACCESS_ALLOWED);
 }
 ACM_ReturnVal permit_leave_group(char *member, char *group, void *dummy_token)
 {
+        (void) member;
+        (void) group;
+        (void) dummy_token;
         return(ACM_ACCESS_ALLOWED);
 }
 ACM_ReturnVal permit_p2p_send(char *sender, int num_dests, char dests[][MAX_GROUP_NAME], int service_type, int16 mess_type)
 {
+        (void) sender;
+        (void) num_dests;
+        (void) dests;
+        (void) service_type;
+        (void) mess_type;
 	return(ACM_ACCESS_ALLOWED);
 }
 ACM_ReturnVal permit_mcast_send(char *sender, int num_groups, char groups[][MAX_GROUP_NAME], int service_type, int16 mess_type)
 {
+        (void) sender;
+        (void) num_groups;
+        (void) groups;
+        (void) service_type;
+        (void) mess_type;
 	return(ACM_ACCESS_ALLOWED);
 }

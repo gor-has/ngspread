@@ -235,21 +235,26 @@ void Prot_set_down_queue( int queue_type )
 
 void Prot_Create_Local_Session( session *new_sess )
 {
+        (void) new_sess;
         return;
 }
 
 void Prot_Destroy_Local_Session( session *old_sess )
 {
+        (void) old_sess;
         return;
 }
 
 void Prot_kill_session( message_obj *msg )
 {
+        (void) msg;
         return;
 }
 
 down_link *Prot_Create_Down_Link( message_obj *msg, int type, int mbox, int cur_element )
 {
+        (void) mbox;
+        (void) cur_element;
         down_link      *down_ptr;
         message_header *head_ptr;
 
@@ -269,8 +274,13 @@ down_link *Prot_Create_Down_Link( message_obj *msg, int type, int mbox, int cur_
         return(down_ptr);
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static void Prot_handle_bcast( sp_channel fd, int dummy, void *dummy_p )
 {
+        (void) dummy;
+        (void) dummy_p;
         packet_header   *pack_ptr;
         packet_body     *pack_body_ptr;
         fragment_header *frag_ptr;
@@ -280,7 +290,7 @@ static void Prot_handle_bcast( sp_channel fd, int dummy, void *dummy_p )
         int             processed_bytes;
         int             padding_bytes;
         int             i, ret;
-        /* int          r1,r2; */
+        // int          r1,r2;
         int             num_bcast, num_token;
         sp_channel         *bcast_channels;
         sp_channel         *token_channels;
@@ -385,6 +395,7 @@ static void Prot_handle_bcast( sp_channel fd, int dummy, void *dummy_p )
         {
                 Flip_frag( frag_ptr );
                 processed_bytes = frag_ptr->fragment_len;
+                
                 while( processed_bytes < pack_ptr->data_len )
                 {
                         padding_bytes = 0; 
@@ -392,10 +403,17 @@ static void Prot_handle_bcast( sp_channel fd, int dummy, void *dummy_p )
                         {
                         case 1:
                                 padding_bytes++;
+#if defined(__GNUC__) && __GNUC__ >= 7
+                                __attribute__((fallthrough));
+#endif
                         case 2:
                                 padding_bytes++;
+#if defined(__GNUC__) && __GNUC__ >= 7
+                                __attribute__((fallthrough));
+#endif
                         case 3:
                                 padding_bytes++;
+                                break;
                         case 0:
                                 /* already aligned */
                                 break;
@@ -502,6 +520,8 @@ static void Prot_handle_bcast( sp_channel fd, int dummy, void *dummy_p )
 
 void Prot_handle_token( sp_channel fd, int dummy, void *dummy_p )
 {
+        (void) dummy;
+        (void) dummy_p;
         int             new_ptr;
         int             num_retrans, num_allowed, num_sent;
         int             flow_control;
@@ -569,9 +589,11 @@ void Prot_handle_token( sp_channel fd, int dummy, void *dummy_p )
                 goto END;
         }
 
-        if ( ret != sizeof(token_header) + Token->rtr_len )
+        if ( ret != (int) sizeof(token_header) + Token->rtr_len )
         {
-                Alarmp( SPLOG_WARNING, PROTOCOL, "Prot_handle_token: recv token len is %d, should be %d\n", ret, sizeof(token_header) + Token->rtr_len );
+                Alarmp( SPLOG_WARNING, PROTOCOL, "Prot_handle_token: recv token len is %d, should be %d\n",
+                        ret,
+                        (int) sizeof(token_header) + Token->rtr_len );
                 goto END;
         }
 
@@ -769,14 +791,15 @@ void Prot_handle_token( sp_channel fd, int dummy, void *dummy_p )
         Alarmp( SPLOG_INFO, PROTOCOL, "Prot_handle_token: calculating Token->aru: Token->aru = %d, My_aru = %d, Token->aru_last_id = 0x%08X, My.id = 0x%08X, Token->seq = %d, Memb_state() = %d\n",
                 Token->aru, My_aru, Token->aru_last_id, My.id, Token->seq, Memb_state() );
 
-        if ( Token->aru > My_aru         ||                           /* this daemon is missing packets: lower aru to My_aru */
-             Token->aru_last_id == My.id ||                           /* this daemon last updated aru: try raising to My_aru */
-             ( Token->aru == Token->seq && Memb_state() != EVS ) ) {  /* everyone has everything so far: try raising to My_aru; NOTE: Token->seq is meaningless in EVS */
-
-                Token->aru         = My_aru;
-                Token->aru_last_id = My.id;
-                Alarmp( SPLOG_INFO, PROTOCOL, "Prot_handle_token: setting Token->aru = %d, Token->aru_last_id = 0x%08X\n", Token->aru, Token->aru_last_id );
+        if ( Token->aru > My_aru ||                                   // this daemon is missing packets: lower aru to My_aru
+             Token->aru_last_id == (int32) My.id ||                   // this daemon last updated aru: try raising to My_aru 
+             ( Token->aru == Token->seq && Memb_state() != EVS ) )    // everyone has everything so far: try raising to My_aru; NOTE: Token->seq is meaningless in EVS
+        {
+           Token->aru = My_aru;
+           Token->aru_last_id = (int32) My.id;
+           Alarmp( SPLOG_INFO, PROTOCOL, "Prot_handle_token: setting Token->aru = %d, Token->aru_last_id = 0x%08X\n", Token->aru, Token->aru_last_id );
         }
+
         
         Token->proc_id = My.id;
         if ( Memb_state() != EVS ) Token->seq = Highest_seq;
@@ -909,6 +932,7 @@ void    Prot_clear_need_conf_reload( void )
  */
 static  void    Prot_handle_conf_reload(sys_scatter *scat)
 {
+        (void) scat;
         if ( Memb_state() == OP ) {
                 Prot_initiate_conf_reload(0, NULL);
         } else {
@@ -924,6 +948,8 @@ static  void    Prot_handle_conf_reload(sys_scatter *scat)
  */
 void    Prot_initiate_conf_reload( int code, void *data )
 {
+        (void) code;
+        (void) data;
         bool    need_memb_partition;
         int16   singleton_partition[MAX_PROCS_RING];
         int     i;
@@ -966,8 +992,12 @@ void    Prot_initiate_conf_reload( int code, void *data )
 }
 
 
-void    Prot_new_message( down_link *down_ptr, int not_used_in_spread3_p )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void Prot_new_message( down_link *down_ptr, int not_used_in_spread3_p )
 {
+        (void) not_used_in_spread3_p;
         int32   leader_id;
 
         if ( Down_queue_ptr->num_mess > 0 )
@@ -975,127 +1005,155 @@ void    Prot_new_message( down_link *down_ptr, int not_used_in_spread3_p )
                 down_ptr->next = NULL;
                 Down_queue_ptr->last->next = down_ptr;
                 Down_queue_ptr->last = down_ptr;
-        }else if ( Down_queue_ptr->num_mess == 0 ){
+        }
+        else if ( Down_queue_ptr->num_mess == 0 )
+        {
                 Down_queue_ptr->first = down_ptr;
                 Down_queue_ptr->last  = down_ptr;
-        }else{
+        }
+        else
+        {
                 Alarmp( SPLOG_FATAL, EXIT,"fast_spread_new_message: Down_queue_ptr->num_mess is %d\n",
                        Down_queue_ptr->num_mess );
         }
         Down_queue_ptr->num_mess++;
-        if ( Down_queue_ptr->num_mess >= WATER_MARK ) 
+        
+        if ( Down_queue_ptr->num_mess >= WATER_MARK )
+        {
                 Sess_block_users_level();
+        }
 
         if ( Down_queue_ptr->num_mess == 1  && Is_token_hold() )
         {
                 leader_id = Conf_leader( Memb_active_ptr() );
-                if ( leader_id == My.id )
+                if ( leader_id == (int32) My.id )
                 {
                         Handle_hurry( Hurry_head );
-                }else{
+                }
+                else
+                {
                         Net_ucast( leader_id, &Hurry_pack );
                 }
         }
 }
 
-static  int     Answer_retrans( int *ret_new_ptr, 
-                                int32 *proc_id, int16 *seg_index )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static int Answer_retrans( int *ret_new_ptr, 
+                           int32 *proc_id, int16 *seg_index )
 {
-        int             num_retrans;
-        sys_scatter     *send_pack_ptr;
-        char            *rtr;
-        int             old_ptr,new_ptr;
-        ring_rtr        *ring_rtr_ptr;
-        int             pack_entry;
-        int             bytes_to_copy;
-        packet_header   *pack_ptr;
-        int             i, ret;
-        int32           *req_seq;
+   int             num_retrans;
+   sys_scatter     *send_pack_ptr;
+   char            *rtr;
+   int             old_ptr,new_ptr;
+   ring_rtr        *ring_rtr_ptr;
+   int             pack_entry;
+   int             bytes_to_copy;
+   packet_header   *pack_ptr;
+   int             i; // ret;
+   int32           *req_seq;
 
-        num_retrans     = 0;
-        new_ptr         = 0;
-        *proc_id     = My.id;
-        *seg_index   = My.seg_index;
-        if ( Token->rtr_len > 0 )
-        {
-                rtr = New_token.elements[1].buf;
-                old_ptr = 0;
-                while( old_ptr < Token->rtr_len )
-                {
-                        ring_rtr_ptr = (ring_rtr *)&rtr[old_ptr];
-                        if ( Memb_is_equal(ring_rtr_ptr->memb_id,Memb_id() ) )
-                        {
-                                /* retransmit requests from my ring */
-                                old_ptr += sizeof(ring_rtr);
-                                for( i=0; i < ring_rtr_ptr->num_seq; i++ )
-                                {
-                                        req_seq = (int32 *)&rtr[old_ptr];
-                                        old_ptr += sizeof(int32);
-                                        pack_entry = *req_seq & PACKET_MASK;
-                                        if ( *req_seq < Aru ) 
-                                                Alarmp( SPLOG_FATAL, EXIT, "Answer_retrans: retrans of %d requested while Aru is %d\n", *req_seq, Aru );
+   num_retrans     = 0;
+   new_ptr         = 0;
+   *proc_id     = My.id;
+   *seg_index   = My.seg_index;
+        
+   if ( Token->rtr_len > 0 )
+   {
+      rtr = New_token.elements[1].buf;
+      old_ptr = 0;
+      while( old_ptr < Token->rtr_len )
+      {
+         ring_rtr_ptr = (ring_rtr *)&rtr[old_ptr];
+         if ( Memb_is_equal(ring_rtr_ptr->memb_id,Memb_id() ) )
+         {
+            /* retransmit requests from my ring */
+            old_ptr += sizeof(ring_rtr);
+            for( i=0; i < ring_rtr_ptr->num_seq; i++ )
+            {
+               req_seq = (int32 *)&rtr[old_ptr];
+               old_ptr += sizeof(int32);
+               pack_entry = *req_seq & PACKET_MASK;
+               if ( *req_seq < Aru ) 
+                  Alarmp( SPLOG_FATAL, EXIT, "Answer_retrans: retrans of %d requested while Aru is %d\n", *req_seq, Aru );
 
-                                        if ( Packets[pack_entry].exist )
-                                        {
-                                                send_pack_ptr = new(SYS_SCATTER);
-                                                send_pack_ptr->num_elements = 2;
-                                                send_pack_ptr->elements[0].len = sizeof(packet_header);
-                                                pack_ptr = Packets[pack_entry].head;
-                                                send_pack_ptr->elements[0].buf = (char *)Packets[pack_entry].head;
-                                                send_pack_ptr->elements[1].buf = (char *)Packets[pack_entry].body;
-                                                send_pack_ptr->elements[1].len = pack_ptr->data_len; 
+               if ( Packets[pack_entry].exist )
+               {
+                  send_pack_ptr = new(SYS_SCATTER);
+                  send_pack_ptr->num_elements = 2;
+                  send_pack_ptr->elements[0].len = sizeof(packet_header);
+                  pack_ptr = Packets[pack_entry].head;
+                  send_pack_ptr->elements[0].buf = (char *)Packets[pack_entry].head;
+                  send_pack_ptr->elements[1].buf = (char *)Packets[pack_entry].body;
+                  send_pack_ptr->elements[1].len = pack_ptr->data_len; 
 
-                                                if ( ring_rtr_ptr->proc_id != -1 )
-                                                {
-                                                        ret = Net_ucast ( ring_rtr_ptr->proc_id, send_pack_ptr );
-                                                        dispose(send_pack_ptr);
-                                                        GlobalStatus.u_retrans++;
+                  if ( ring_rtr_ptr->proc_id != -1 )
+                  {
+                     
+                     // ret = Net_ucast ( ring_rtr_ptr->proc_id, send_pack_ptr );
+                     Net_ucast ( ring_rtr_ptr->proc_id, send_pack_ptr );
 
-                                                        Alarmp( SPLOG_INFO, PROTOCOL, "Answer_retrans: retransmit %d to proc 0x%08X\n", *req_seq, ring_rtr_ptr->proc_id );
+                     dispose(send_pack_ptr);
+                     GlobalStatus.u_retrans++;
+                                                   
+                     Alarmp( SPLOG_INFO, PROTOCOL, "Answer_retrans: retransmit %d to proc 0x%08X\n", *req_seq, ring_rtr_ptr->proc_id );
+                                                   
+                  }
+                  else if ( ring_rtr_ptr->seg_index != -1 )
+                  {
+                     Net_scast ( ring_rtr_ptr->seg_index, send_pack_ptr );
+                     dispose(send_pack_ptr);
+                     GlobalStatus.s_retrans++;
+                                                   
+                     Alarmp( SPLOG_INFO, PROTOCOL, "Answer_retrans: retransmit %d to seg 0x%08X\n", *req_seq, ring_rtr_ptr->seg_index );
 
-                                                }else if ( ring_rtr_ptr->seg_index != -1 ) {
-                                                        ret = Net_scast ( ring_rtr_ptr->seg_index, send_pack_ptr );
-                                                        dispose(send_pack_ptr);
-                                                        GlobalStatus.s_retrans++;
+                  }
+                  else
+                  {
+                     /* NOTE: we bcast retransmissions immediately rather than queue them to give such retranmissions a better chance of 
+                        being received before the token at the next member, so that they don't re-request retransmissions we are sending now */
+                     Net_bcast( send_pack_ptr );
+                     dispose( send_pack_ptr );
+                     GlobalStatus.b_retrans++;
+                                                   
+                     Alarmp( SPLOG_INFO, PROTOCOL, "Answer_retrans: retransmit %d to all\n", *req_seq);
+                  }
+                  num_retrans++;
+               }
+               else
+               {
+                  *proc_id = -1;
+                  if ( ring_rtr_ptr->seg_index != My.seg_index )
+                     *seg_index = -1;
+               }
+            }
+         }
+         else
+         {
+            /* copy requests of other rings */
+            bytes_to_copy = sizeof(ring_rtr) + 
+               ring_rtr_ptr->num_seq * sizeof(int32);
 
-                                                        Alarmp( SPLOG_INFO, PROTOCOL, "Answer_retrans: retransmit %d to seg 0x%08X\n", *req_seq, ring_rtr_ptr->seg_index );
+            if ( new_ptr != old_ptr )
+               memmove( &rtr[new_ptr], &rtr[old_ptr], bytes_to_copy);
 
-                                                }else{
-                                                        /* NOTE: we bcast retransmissions immediately rather than queue them to give such retranmissions a better chance of 
-                                                           being received before the token at the next member, so that they don't re-request retransmissions we are sending now */
-                                                        ret = Net_bcast( send_pack_ptr );
-                                                        dispose( send_pack_ptr );
-                                                        GlobalStatus.b_retrans++;
+            old_ptr += bytes_to_copy;
+            new_ptr += bytes_to_copy;
 
-                                                        Alarmp( SPLOG_INFO, PROTOCOL, "Answer_retrans: retransmit %d to all\n", *req_seq);
-                                                }
-                                                num_retrans++;
-                                        }else{
-                                                *proc_id = -1;
-                                                if ( ring_rtr_ptr->seg_index != My.seg_index )
-                                                        *seg_index = -1;
-                                        }
-                                }
-                        }else{
-                                /* copy requests of other rings */
-                                bytes_to_copy = sizeof(ring_rtr) + 
-                                        ring_rtr_ptr->num_seq * sizeof(int32);
-
-                                if ( new_ptr != old_ptr )
-                                        memmove( &rtr[new_ptr], &rtr[old_ptr], bytes_to_copy);
-
-                                old_ptr += bytes_to_copy;
-                                new_ptr += bytes_to_copy;
-
-                                Alarmp( SPLOG_INFO, PROTOCOL, "Prot_handle_token: Coping foreign rtr\n");
-                        }
-                }
-        }
-        *ret_new_ptr = new_ptr;
-        return (num_retrans);
+            Alarmp( SPLOG_INFO, PROTOCOL, "Prot_handle_token: Coping foreign rtr\n");
+         }
+      }
+   }
+        
+   *ret_new_ptr = new_ptr;
+   return (num_retrans);
 }
 
-static  int     Send_new_packets( int num_allowed )
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static int Send_new_packets( int num_allowed )
 {
         packet_header   *pack_ptr;
         scatter         *scat_ptr;
@@ -1106,7 +1164,7 @@ static  int     Send_new_packets( int num_allowed )
         int             num_sent;
         int             padding_bytes;
         int             available_bytes;
-        int             ret;
+        // int             ret;
 
         num_sent = 0;
         while( num_sent < num_allowed )
@@ -1163,11 +1221,14 @@ static  int     Send_new_packets( int num_allowed )
                         /* Advance the down queue and set the fragment index for the fragment
                          * just added to the packet. */
                         Down_queue_ptr->cur_element++;
+                        
                         if ( Down_queue_ptr->cur_element < (int) scat_ptr->num_elements )
                         {
                                 /* not last packet in message */
                                 frag_ptr->fragment_index = Down_queue_ptr->cur_element;
-                        }else if ( Down_queue_ptr->cur_element == scat_ptr->num_elements ){
+                        }
+                        else if ( Down_queue_ptr->cur_element == (int) scat_ptr->num_elements )
+                        {
                                 down_link       *tmp_down;
 
                                 /* last packet in message */
@@ -1181,11 +1242,14 @@ static  int     Send_new_packets( int num_allowed )
                                 dispose( tmp_down );
                                 if ( Down_queue_ptr->num_mess < WATER_MARK ) 
                                         Sess_unblock_users_level();
-                        }else{
+                        }
+                        else
+                        {
                                 Alarmp( SPLOG_FATAL, EXIT, 
                                        "Send_new_packets: error in packet index: %d %d\n",
                                        Down_queue_ptr->cur_element,scat_ptr->num_elements );
                         }
+                        
                         /* Break if another fragment cannot be added to this packet.
                          *    This happens in 3 cases:
                          *    1. The down queue is empty.
@@ -1200,10 +1264,17 @@ static  int     Send_new_packets( int num_allowed )
                         {
                         case 1:
                                 padding_bytes++;
+#if defined(__GNUC__) && __GNUC__ >= 7
+                                __attribute__((fallthrough));
+#endif
                         case 2:
                                 padding_bytes++;
+#if defined(__GNUC__) && __GNUC__ >= 7
+                                __attribute__((fallthrough));
+#endif
                         case 3:
                                 padding_bytes++;
+                                break;
                         case 0:
                                 /* already aligned */
                                 break;
@@ -1248,7 +1319,10 @@ static  int     Send_new_packets( int num_allowed )
                 send_pack_ptr->elements[0].buf = (char *) pack_ptr;
                 send_pack_ptr->elements[1].len = pack_ptr->data_len;
 
-                ret = Prot_queue_bcast( send_pack_ptr, &Send_pack_queue );
+                //ret = Prot_queue_bcast( send_pack_ptr, &Send_pack_queue );
+                
+                Prot_queue_bcast( send_pack_ptr, &Send_pack_queue );
+                
                 num_sent++;
  
                 pack_entry = pack_ptr->seq & PACKET_MASK;
@@ -1403,14 +1477,22 @@ static  void    Deliver_packet( int pack_entry, int to_copy )
                 {
                 case 1:
                         padding_bytes++;
+#if defined(__GNUC__) && __GNUC__ >= 7
+                        __attribute__((fallthrough));
+#endif
                 case 2:
-                        padding_bytes++;
+                   padding_bytes++;
+#if defined(__GNUC__) && __GNUC__ >= 7
+                   __attribute__((fallthrough));
+#endif
                 case 3:
                         padding_bytes++;
+                        break;
                 case 0:
                         /* already aligned */
                         break;
                 }
+                
                 processed_bytes += padding_bytes;
                 frag_ptr = (fragment_header *) &pack_body_ptr[processed_bytes];
                 processed_bytes += sizeof(fragment_header);
@@ -1466,15 +1548,20 @@ static  void    Deliver_packet( int pack_entry, int to_copy )
 
         /* validity check */
         index = pack_ptr->first_frag_header.fragment_index;
-        if ( index < 0 ) index = -index;
-        if ( up_ptr->mess->num_elements+1 != index )
+        if ( index < 0 )
         {
-                Alarmp( SPLOG_FATAL, EXIT, "Deliver_packet: sequence error: sec is %d, should be %d\n",
-                       pack_ptr->first_frag_header.fragment_index,
-                       up_ptr->mess->num_elements+1 );
+           index = -index;
+        }
+        
+        if ( (int) up_ptr->mess->num_elements+1 != index )
+        {
+           Alarmp( SPLOG_FATAL, EXIT,
+                   "Deliver_packet: sequence error: sec is %d, should be %d\n",
+                   pack_ptr->first_frag_header.fragment_index,
+                   (int) up_ptr->mess->num_elements+1 );
         }
 
-        /* chain this packet */
+        // chain this packet
         up_ptr->mess->num_elements++;
         up_ptr->mess->elements[index-1].len = Packets[pack_entry].head->first_frag_header.fragment_len;
         up_ptr->mess->elements[index-1].buf = (char *)Packets[pack_entry].body;
@@ -1519,6 +1606,8 @@ static  void    Deliver_packet( int pack_entry, int to_copy )
 
 static void Deliver_all_reliable_packets_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Deliver_reliable_packets( 1, Highest_seq );
 }
 
@@ -1552,6 +1641,8 @@ static  void    Deliver_reliable_packets( int32 start_seq, int num_packets )
 
 static void Deliver_agreed_packets_event( int dmy, void *dmy_ptr )
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Deliver_agreed_packets();
 }
 
@@ -1878,6 +1969,8 @@ void    Prot_token_hurry(void)
 
 void    Prot_token_hurry_event(int dmy, void *dmy_ptr)
 {
+        (void) dmy;
+        (void) dmy_ptr;
         Prot_token_hurry();
 }
 
@@ -1969,27 +2062,47 @@ void Prot_set_delivery_threshold( int new_thresh )
                 switch ( new_thresh )
                 {
                 case UNRELIABLE_TYPE:
-                case RELIABLE_TYPE:       E_queue( Deliver_all_reliable_packets_event, 0, NULL, Zero_timeout );
+                case RELIABLE_TYPE:
+                   E_queue( Deliver_all_reliable_packets_event, 0, NULL, Zero_timeout );
+#if defined(__GNUC__) && __GNUC__ >= 7
+                   __attribute__((fallthrough));
+#endif
                 case FIFO_TYPE:
                 /*case CAUSAL_TYPE:*/
-                case AGREED_TYPE:         E_queue( Deliver_agreed_packets_event, 0, NULL, Zero_timeout );
-                case SAFE_TYPE:       
-                case BLOCK_REGULAR_DELIVERY:
-                        break;
+                case AGREED_TYPE:
+                   E_queue( Deliver_agreed_packets_event, 0, NULL, Zero_timeout );
+#if defined(__GNUC__) && __GNUC__ >= 7
+                   __attribute__((fallthrough));
+#endif
+                   case SAFE_TYPE:       
+                   case BLOCK_REGULAR_DELIVERY:
+                      break;
                 }
         }
         else if ( new_thresh > old_thresh )
         {
-                switch ( new_thresh )
-                {
-                case BLOCK_REGULAR_DELIVERY:
-                case SAFE_TYPE:           E_dequeue( Deliver_agreed_packets_event, 0, NULL );
-                case AGREED_TYPE:
-                /*case CAUSAL_TYPE:*/
-                case FIFO_TYPE:           E_dequeue( Deliver_all_reliable_packets_event, 0, NULL );
-                case RELIABLE_TYPE:
-                case UNRELIABLE_TYPE:
-                        break;
-                }
+           switch ( new_thresh )
+           {
+              case BLOCK_REGULAR_DELIVERY:
+              case SAFE_TYPE:
+                 E_dequeue( Deliver_agreed_packets_event, 0, NULL );
+#if defined(__GNUC__) && __GNUC__ >= 7
+                 __attribute__((fallthrough));
+#endif
+              case AGREED_TYPE:
+                 // case CAUSAL_TYPE:
+              case FIFO_TYPE:
+                 E_dequeue( Deliver_all_reliable_packets_event, 0, NULL );
+#if defined(__GNUC__) && __GNUC__ >= 7
+                 __attribute__((fallthrough));
+#endif
+              case RELIABLE_TYPE:
+              case UNRELIABLE_TYPE:
+                 break;
+           }
         }
 }
+
+//----------------------------------------------------------------------
+//  EOF
+//----------------------------------------------------------------------

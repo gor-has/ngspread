@@ -60,8 +60,8 @@
 #  include <sys/stat.h>
 
 static	char		*My_name = NULL;
-static	char		My_name_buf[80];
-static	char		Config_file[512];
+
+
 static	int		Log;
 
 static  const char            Spread_build_date[] = SPREAD_BUILD_DATE;
@@ -82,6 +82,7 @@ static void Bye( void )
 
 static void E_exit_events_wrapper( int signum )
 {
+        (void) signum;
         E_exit_events_async_safe();
 }
 
@@ -90,6 +91,9 @@ static void E_exit_events_wrapper( int signum )
 //----------------------------------------------------------------------
 void log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data)
 {
+   (void) log_domain;
+   (void) log_level;
+   (void) data;
 
    printf("%s", message);
 
@@ -295,7 +299,6 @@ int main(int argc, char *argv[])
         /* Initialize Access Control & Authentication */
         Acm_init();
 
-	//Conf_init( Config_file, My_name );
 	Conf_init( config_file, My_name );
 
 	E_init();

@@ -77,18 +77,25 @@ void	Log_init()
 	Log_alive(0, NULL);
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static  void	Log_alive(int dummy, void *dummy_p)
 {
-	if( !Is_inited ) return;
-
-	fclose(fd);        
-	fd = fopen( My_name, "a" );
+   (void) dummy;
+   (void) dummy_p;
+   
+   if( !Is_inited ) return;
+   
+   fclose(fd);        
+   fd = fopen( My_name, "a" );
+   
+   if( fd == NULL )
+      Alarm( EXIT, "Log_alive: error (%s) could not open file %s\n",strerror(errno), My_name );
         
-	if( fd == NULL )
-		Alarm( EXIT, "Log_alive: error (%s) could not open file %s\n",strerror(errno), My_name );
-        
-	E_queue( Log_alive, 0, NULL, alive_time );
+   E_queue( Log_alive, 0, NULL, alive_time );
 }
+
 
 void 	Log_membership()
 {

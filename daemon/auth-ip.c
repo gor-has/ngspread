@@ -49,6 +49,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 /* NOTE: 
  *
@@ -162,11 +163,15 @@ void ip_init(void)
     IP_File_Loaded = TRUE;
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 static void insert_ip_rule(int32u net_address, int prefix)
 {
     struct ip_rule *new_rule;
     
     new_rule = malloc(sizeof(struct ip_rule));
+    
     if (!new_rule)
         Alarmp(SPLOG_FATAL, ACM, "insert_ip_rule: Failed to allocate a struct ip_rule\n");
 
@@ -183,6 +188,9 @@ static void insert_ip_rule(int32u net_address, int prefix)
     Allow_Rules = new_rule;
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void ip_auth_client_connection(struct session_auth_info *sess_auth_p)
 {
     int32u client_ip, client_net;
@@ -203,15 +211,30 @@ void ip_auth_client_connection(struct session_auth_info *sess_auth_p)
     {
       client_ip = ntohl(Sessions[ses].addr.ipv4.sin_addr.s_addr);
       rule_p = Allow_Rules;
-      /* Search allowed lists */
+
+      // Search allowed lists
       while(rule_p)
       {
+         uint32_t netmask;
+
+         if (rule_p->prefix_length == 0)
+         {
+            netmask = 0;
+         }
+         else
+         {
+            netmask = UINT32_MAX << (32 - rule_p->prefix_length);
+         }
+         
         Alarmp(SPLOG_INFO, ACM, "ip_open_connection: client_ip: %d.%d.%d.%d, prefix: %d premask: 0x%x mask: 0x%x\n",
-               IP1(client_ip), IP2(client_ip), IP3(client_ip), IP4(client_ip), rule_p->prefix_length, ~0x0,
-               ( (~0x0) << (32 - rule_p->prefix_length)) );
-        
-        client_net = (client_ip & ( (~0x0) << (32 - rule_p->prefix_length)));
-        
+               IP1(client_ip), IP2(client_ip), IP3(client_ip), IP4(client_ip),
+               rule_p->prefix_length, UINT32_MAX,
+               netmask );
+
+        // client_net = (client_ip & ( (~0x0) << (32 - rule_p->prefix_length)));
+
+        client_net = client_ip & netmask;
+
         Alarmp(SPLOG_INFO, ACM, "ip_open_connection: comparing network %d.%d.%d.%d with client %d.%d.%d.%d\n",
                IP1(rule_p->network_address), IP2(rule_p->network_address), IP3(rule_p->network_address), 
                IP4(rule_p->network_address), IP1(client_net),IP2(client_net),IP3(client_net),IP4(client_net) );
@@ -233,5 +256,7 @@ void ip_auth_client_connection(struct session_auth_info *sess_auth_p)
 
 void ip_auth_monitor_connection(mailbox mbox, int32 ip_addr)
 {
+    (void) mbox;
+    (void) ip_addr;
     /*	Mon_Connection_Allowed(); */
 }
