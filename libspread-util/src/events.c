@@ -46,6 +46,10 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <string.h>
+
+#include <sys/time.h>
+#include <dlfcn.h>
+
 #include "spu_events.h"
 #include "spu_objects.h"    /* For memory */
 #include "spu_memory.h"     /* for memory */

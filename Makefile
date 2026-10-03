@@ -20,7 +20,6 @@ CFLAGS      ?= -O2 -g
 # CFLAGS      += -Wall -Wextra -fPIC
 CFLAGS      += -std=c99 -Wall -Wextra -fPIC
 
-
 # CPPFLAGS    += -Iinclude -Ilibspread -Ilibspread-util/src -Istdutil/src
 
 CPPFLAGS := \
@@ -32,8 +31,17 @@ CPPFLAGS := \
 	-Idaemon \
 	$(shell pkg-config --cflags glib-2.0)
 
-CPPFLAGS += -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE
+UNAME_S := $(shell uname -s)
 
+ifneq ($(UNAME_S),FreeBSD)
+CPPFLAGS += -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE
+endif
+
+ifeq ($(UNAME_S),FreeBSD)
+CPPFLAGS += -D_REENTRANT
+CFLAGS += -pthread
+LDFLAGS += -pthread
+endif
 
 
 GLIB_CFLAGS := $(shell $(PKG_CONFIG) --cflags glib-2.0 2>/dev/null)

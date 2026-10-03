@@ -878,7 +878,7 @@ static int SP_connect_timeout_low( const char *spread_name, const char *private_
 
 		if( host_name[0] != '@' ) return( ILLEGAL_SPREAD );
 
-                hint.ai_family   = PF_UNSPEC;
+                hint.ai_family   = AF_UNSPEC;
                 hint.ai_socktype = SOCK_STREAM;
                 hint.ai_protocol = IPPROTO_TCP;
                 hint.ai_flags    = 0;
