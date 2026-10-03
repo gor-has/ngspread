@@ -86,7 +86,10 @@ spuser: examples/user.o $(LIBSPREAD_OBJS) $(SPU_OBJS) $(STDUTIL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ examples/user.o $(LIBSPREAD_OBJS) $(SPU_OBJS) $(STDUTIL_OBJS) $(LDLIBS)
 
 daemon/lex.yy.o: daemon/lex.yy.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused-function -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) \
+	-Wno-unused-function \
+	-Wno-misleading-indentation \
+	-c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<

@@ -2741,12 +2741,16 @@ int  G_private_to_names( char *private_group_name, char *private_name, char *pro
 	return( 1 );
 }
 
-static	void	G_print()
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+static void G_print()
 {
+  
 	group	            *grp;
         daemon_members      *dmn;
 	member	            *mbr;
-	int	             i, j, k;
+	int	             i, k;
 	stdit                git, dit, mit;
 
 	Alarmp( SPLOG_PRINT, GROUPS, "++++++++++++++++++++++\n" );
@@ -2757,7 +2761,10 @@ static	void	G_print()
 	        grp = *(group**) stdskl_it_key(&git);
 		Alarmp( SPLOG_PRINT, GROUPS, "[%d] group %s with %d members:\n", i+1, grp->name, grp->num_members );
 
-		for (j = 0, stdskl_begin(&grp->DaemonsList, &dit); !stdskl_is_end(&grp->DaemonsList, &dit); ++j, stdskl_it_next(&dit)) 
+		//----------------------------------------------------------------------
+		// removed j
+		//----------------------------------------------------------------------
+		for ( stdskl_begin(&grp->DaemonsList, &dit); !stdskl_is_end(&grp->DaemonsList, &dit); stdskl_it_next(&dit)) 
 		{
 		        dmn = *(daemon_members**) stdskl_it_key(&dit);
 

@@ -181,7 +181,7 @@ static GOptionEntry general_options[] =
 {
    { "version", 'v', 0,  G_OPTION_ARG_NONE, &version, "Version", NULL},
    { "about", 'a', 0, G_OPTION_ARG_NONE, &about, "Print credit page.", NULL}, 
-   {NULL}
+   {NULL, 0, 0, 0, NULL, NULL, NULL}
 };
 
 
@@ -192,7 +192,7 @@ static GOptionEntry config_options[] =
 {
    { "name", 'n', 0, G_OPTION_ARG_STRING, &daemon_name, "Override local daemon name", NULL},
    { "config-file", 'c', 0, G_OPTION_ARG_STRING, &config_file, "Configuration file.", NULL},
-   {NULL}
+   {NULL, 0, 0, 0, NULL, NULL, NULL}
 };
 
 //----------------------------------------------------------------------
@@ -203,7 +203,7 @@ static GOptionEntry log_options[] =
    { "log-dir", 'd', 0, G_OPTION_ARG_STRING, &log_dir, "Log directory", NULL},
    { "log-file", 'l', 0, G_OPTION_ARG_STRING, &log_file, "Log file.", NULL},
    { "log-level", 0, 0, G_OPTION_ARG_STRING, &log_level, "Log level", "LEVEL" },
-   {NULL}
+   {NULL, 0, 0, 0, NULL, NULL, NULL}
 };
 
 

@@ -848,11 +848,13 @@ static void cancel_reservation(fl_conn *conn) {
    without an intervening call to release_conn_lock on that conn to
    prevent self-deadlocks.  
 */
-static int acquire_conn_lock(fl_conn *conn) {
+static int acquire_conn_lock(fl_conn *conn)
+{
   FL_MUTEX_grab(&conn->conn_lock);                                 /* LOCK CONN_LOCK */
-  if (conn->disconnecting) {                                /* conn is disconnecting */
-    FL_MUTEX_drop(&conn->conn_lock);
-    return 0;
+  if (conn->disconnecting)
+  {                                /* conn is disconnecting */
+      FL_MUTEX_drop(&conn->conn_lock);
+      return 0;
   }
 
   return 1;
@@ -863,7 +865,10 @@ static int acquire_conn_lock(fl_conn *conn) {
    have made a successful call to acquire_conn_lock on release without
    any intervening calls to release_conn_lock on release.  
 */
-static void release_conn_lock(fl_conn *release) {
+static void release_conn_lock(fl_conn *release)
+{
+  (void) release;
+  
   FL_MUTEX_drop(&release->conn_lock);                            /* UNLOCK CONN_LOCK */
 }
 
@@ -880,7 +885,8 @@ static void release_conn_lock(fl_conn *release) {
    MODIFY _ANY_ OF THE CONNECTION'S DATA!! IT ONLY ALLOWS A THREAD TO
    ENTER THE BODY OF FL_scat_recv!!  
 */
-static int acquire_recv_lock(fl_conn *conn) {
+static int acquire_recv_lock(fl_conn *conn)
+{
   FL_MUTEX_grab(&conn->recv_lock);           /* LOCK RECV_LOCK */
   if (conn->disconnecting) {                 /* conn is disconnecting */
     FL_MUTEX_drop(&conn->recv_lock);
@@ -895,7 +901,10 @@ static int acquire_recv_lock(fl_conn *conn) {
    made a successful call to acquire_recv_lock on release without any
    intervening calls to release_recv_lock on release.  
 */
-static void release_recv_lock(fl_conn *release) {
+static void release_recv_lock(fl_conn *release)
+{
+  (void) release;
+  
   FL_MUTEX_drop(&release->recv_lock);           /* UNLOCK RECV_LOCK */
 }
 
