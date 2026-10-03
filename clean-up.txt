@@ -1,0 +1,108 @@
+ngspread modernization and cleanup
+==================================
+
+Purpose
+-------
+This file summarizes the modernization and cleanup work performed on the
+ngspread source tree on the modernization branch.  It is intended to travel
+with the source as part of the cleanup commit.
+
+Build system
+------------
+- Added and repaired a straightforward Linux build path.
+- Added Makefile.linux and retained Makefile.simple as a small, direct build.
+- Added an installable ngspread client library layout.
+- Added include/ngspread/sp.h for the installed public header.
+- Added ngspread.pc.in for pkg-config support.
+- Added prepare/install layout helper scripts and installation documentation.
+- Added/updated systemd support for running the daemon as ngspread.service.
+- Removed tracked object files and updated .gitignore accordingly.
+- Removed obsolete autoconf-generated/configuration artifacts from the active
+  modernization path.
+- Removed obsolete Windows/Win95 build support from the active source tree.
+
+Linux/compiler modernization
+----------------------------
+The daemon and library sources were cleaned so that both the normal Linux
+build and:
+
+    make -f Makefile.simple
+
+build without compiler warnings with the current warning flags.
+
+The cleanup includes:
+- Fixed undefined/unsafe signed shift handling in auth-ip.c.
+- Fixed possible uninitialized pointer paths in configuration reload handling.
+- Fixed string-copy truncation/NUL-termination issues.
+- Replaced exact-length strncpy uses with memcpy where appropriate.
+- Added explicit fall-through annotations to intentional switch fall-throughs.
+- Fixed signed/unsigned comparisons where the legacy protocol types and modern
+  size_t/unsigned types meet.
+- Removed variables that were assigned but never used.
+- Marked intentionally unused callback parameters explicitly with (void).
+- Preserved required session scatter initialization after detecting that it is
+  genuinely used by the receive path.
+- Cleaned warnings in membership, groups, session, network, protocol, message,
+  authentication, access-control, logging, flow-control, and daemon startup
+  sources.
+
+Legacy generated parser
+-----------------------
+The existing generated configuration parser files are retained for now so the
+current configuration mechanism continues to work.
+
+The normal modernization build does not regenerate lex.yy.c/y.tab.c.
+Two unused helper functions emitted by the legacy lexer generator (input and
+yyunput) are therefore not edited in generated source.  Makefile.simple
+suppresses -Wunused-function only for the lex.yy.c object.
+
+This keeps all hand-written code warning-clean without modifying generated
+lexer output.
+
+Configuration direction
+-----------------------
+The long-term intention is to replace the legacy lexer/bison configuration
+format with a simpler structured configuration format.
+
+spread_config.sample.json has been added as a PROTOTYPE ONLY.  It is a
+placeholder showing a possible JSON representation of the existing Spread
+configuration concepts, including:
+- daemon identity and runtime user/group
+- Spread segments and processes
+- socket port reuse
+- dangerous monitor mode
+- logging/debug flags
+- authentication/access-control settings
+- placeholders for flow-control and routing options
+
+The daemon does not yet parse this JSON file.  No claim is made that the JSON
+schema is final or complete.
+
+The prototype is based on the structure and options represented by the legacy
+Spread sample configuration and current ngspread usage.  It should be refined
+when the legacy parser is actually replaced.
+
+Compatibility
+-------------
+The cleanup was intentionally conservative.  Protocol, membership, message,
+session, authentication, and network behavior were kept unchanged except where
+a compiler warning exposed an actual correctness issue.
+
+Current state
+-------------
+At the end of this cleanup:
+- the normal Linux build is warning-clean;
+- make -f Makefile.simple is warning-clean;
+- generated lexer code is left intact;
+- obsolete tracked build products have been removed;
+- Linux/systemd installation is the supported modernization target;
+- a JSON configuration prototype is present for future parser work.
+
+Next likely work
+----------------
+- Define the final JSON schema.
+- Implement JSON configuration loading and validation.
+- Map all legacy configuration directives into the JSON model.
+- Add configuration parser tests.
+- Retire the generated lex/yacc parser only after JSON compatibility is
+  complete and tested.
