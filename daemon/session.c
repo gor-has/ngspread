@@ -319,139 +319,161 @@ int     count_bits_set( int32u field, int first_index, int last_index)
         return count;
 }
 
-void	Sess_init()
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void Sess_init()
 {
-        spu_addr                if_addr;
-	int			ret, i;
-	mailbox			mbox;
-        port_reuse              reuse = Conf_get_port_reuse_type();
+   spu_addr                if_addr;
+   int			ret, i;
+   mailbox			mbox;
+   port_reuse              reuse = Conf_get_port_reuse_type();
+   
+   struct	sockaddr_un	unix_addr;
+   char		       *name = unix_addr.sun_path;
+   
+   signal( SIGPIPE, SIG_IGN );
+   
+   ret = Mem_init_object( MESSAGE_LINK, "message_link", sizeof(message_link), 1000, 0);
 
+   if (ret < 0)
+      Alarm(EXIT, "Sess_init: Failure to Initialize MESSAGE_LINK memory objects\n");
+   
+   ret = Mem_init_object( DOWN_LINK, "down_link", sizeof(down_link), 200, 0);
 
+   if (ret < 0)
+      Alarm(EXIT, "Sess_Init: Failure to Initialize DOWN_LINK memory objects\n");
+   
+   Sess_init_sessions();
+   
+   Num_sessions = 0;
+   GlobalStatus.num_sessions = Num_sessions;
+   GlobalStatus.message_delivered = 0;
+   My 	  = Conf_my();
+   Sess_port = spu_addr_ip_get_port(&My.proc_addr);
+   Session_threshold = LOW_PRIORITY;
 
-	struct	sockaddr_un	unix_addr;
-	char		       *name = unix_addr.sun_path;
+   // Initializing the protocol
+   Protocol_threshold = LOW_PRIORITY;
 
-	signal( SIGPIPE, SIG_IGN );
-    
+   Prot_init_down_queues();
+   Prot_set_down_queue( NORMAL_DOWNQUEUE );
+   Prot_init();
 
-    ret = Mem_init_object( MESSAGE_LINK, "message_link", sizeof(message_link), 1000, 0);
-    if (ret < 0)
-       Alarm(EXIT, "Sess_init: Failure to Initialize MESSAGE_LINK memory objects\n");
-    
-    ret = Mem_init_object( DOWN_LINK, "down_link", sizeof(down_link), 200, 0);
-    if (ret < 0)
-       Alarm(EXIT, "Sess_Init: Failure to Initialize DOWN_LINK memory objects\n");
-    
-	Sess_init_sessions();
-	
-	Num_sessions = 0;
-	GlobalStatus.num_sessions = Num_sessions;
-	GlobalStatus.message_delivered = 0;
-	My 	  = Conf_my();
-	Sess_port = spu_addr_ip_get_port(&My.proc_addr);
-	Session_threshold = LOW_PRIORITY;
+   Accept_inet_mbox_num = 0;
 
-	/* Initializing the protocol */
-	Protocol_threshold = LOW_PRIORITY;
-
-        Prot_init_down_queues();
-        Prot_set_down_queue( NORMAL_DOWNQUEUE );
-        Prot_init();
-
-        Accept_inet_mbox_num = 0;
-
-        /* Bind to all interfaces specified in config file */
+   // Bind to all interfaces specified in config file
         
-        for ( i=0; i < My.num_if; i++)
-        {
-                if_addr = My.ifc[i].ifaddr;
+   for ( i=0; i < My.num_if; i++)
+   {
+      if_addr = My.ifc[i].ifaddr;
           
-                if (Is_IfType_Client(My.ifc[i].iftype) || Is_IfType_Any(My.ifc[i].iftype) )
-                {
-                        int family = spu_addr_family(&if_addr);
+      if (Is_IfType_Client(My.ifc[i].iftype) || Is_IfType_Any(My.ifc[i].iftype) )
+      {
+	 int family = spu_addr_family(&if_addr);
 
-                        if (Sess_port != spu_addr_ip_get_port(&if_addr))
-                          Alarmp( SPLOG_FATAL, SESSION, "Sess_init: interface port didn't match proc's?!\n" );
+	 if (Sess_port != spu_addr_ip_get_port(&if_addr))
+	    Alarmp( SPLOG_FATAL, SESSION, "Sess_init: interface port didn't match proc's?!\n" );
                         
-                        if ((mbox = socket(family, SOCK_STREAM, 0)) == INVALID_SOCKET)
-                          Alarmp( SPLOG_FATAL, SESSION, "Sess_init: INET sock error: %d %d '%s'\n", mbox, sock_errno, sock_strerror( sock_errno ) );
+	 if ((mbox = socket(family, SOCK_STREAM, 0)) == INVALID_SOCKET)
+	    Alarmp( SPLOG_FATAL, SESSION, "Sess_init: INET sock error: %d %d '%s'\n", mbox, sock_errno, sock_strerror( sock_errno ) );
                         
-                        if (reuse == PORT_REUSE_ON)
-                          Sess_activate_port_reuse(mbox);
+	 if (reuse == PORT_REUSE_ON)
+	    Sess_activate_port_reuse(mbox);
 
-                        if (Is_IfType_Any(My.ifc[i].iftype) )
-                          spu_addr_ip_set_unspecified(&if_addr);
+	 if (Is_IfType_Any(My.ifc[i].iftype) )
+	    spu_addr_ip_set_unspecified(&if_addr);
 
-                        else if (reuse == PORT_REUSE_AUTO)
-                          Sess_activate_port_reuse(mbox);
+	 else if (reuse == PORT_REUSE_AUTO)
+	    Sess_activate_port_reuse(mbox);
                         
-                        if ((ret = bind(mbox, (struct sockaddr*) &if_addr, spu_addr_len(&if_addr))))
-                          Alarmp(SPLOG_FATAL, SESSION, "Sess_init: unable to bind to port [%s]:%u; likely already bound by another process: %d %d '%s'\n",
-                                 SPU_ADDR_NTOP(&if_addr), (unsigned) spu_addr_ip_get_port(&if_addr), ret, sock_errno, sock_strerror(sock_errno));
+	 if ((ret = bind(mbox, (struct sockaddr*) &if_addr, spu_addr_len(&if_addr))))
+	    Alarmp(SPLOG_FATAL, SESSION, "Sess_init: unable to bind to port [%s]:%u; likely already bound by another process: %d %d '%s'\n",
+		   SPU_ADDR_NTOP(&if_addr), (unsigned) spu_addr_ip_get_port(&if_addr), ret, sock_errno, sock_strerror(sock_errno));
 
-                        if ((ret = listen(mbox, 25))) 
-                          Alarmp(SPLOG_FATAL, SESSION, "Sess_init: listen failed: %d %d '%s'\n", ret, sock_errno, sock_strerror(sock_errno));                        
+	 if ((ret = listen(mbox, 25))) 
+	    Alarmp(SPLOG_FATAL, SESSION, "Sess_init: listen failed: %d %d '%s'\n", ret, sock_errno, sock_strerror(sock_errno));                        
 
-                        Accept_inet_mbox[Accept_inet_mbox_num++] = mbox;
+	 Accept_inet_mbox[Accept_inet_mbox_num++] = mbox;
 
-                        Alarmp(SPLOG_INFO, SESSION, "Sess_init: TCP bind on [%s]:%u went ok for mailbox %d\n",
-                               SPU_ADDR_NTOP(&if_addr), (unsigned) spu_addr_ip_get_port(&if_addr), mbox);
-                }
-        }
+	 Alarmp(SPLOG_INFO, SESSION, "Sess_init: TCP bind on [%s]:%u went ok for mailbox %d\n",
+		SPU_ADDR_NTOP(&if_addr), (unsigned) spu_addr_ip_get_port(&if_addr), mbox);
+      }
+   }
 
 
 
-	/* Initiation of the UNIX socket */
+   // Initiation of the UNIX socket
 
-	if( (mbox = socket( AF_UNIX, SOCK_STREAM, 0 ) ) == -1)
-	    Alarm( EXIT, "Sess_init: UNIX sock error\n" );
+   if( (mbox = socket( AF_UNIX, SOCK_STREAM, 0 ) ) == -1)
+      Alarm( EXIT, "Sess_init: UNIX sock error\n" );
 
-        memset(&unix_addr, 0, sizeof(unix_addr));
-	unix_addr.sun_family = AF_UNIX;
-	snprintf( name, sizeof(unix_addr.sun_path), "%s/%u", SP_UNIX_SOCKET, (unsigned) Sess_port );
-	unlink( name );
+   memset(&unix_addr, 0, sizeof(unix_addr));
+   unix_addr.sun_family = AF_UNIX;
+   snprintf( name, sizeof(unix_addr.sun_path), "%s/%u", SP_UNIX_SOCKET, (unsigned) Sess_port );
 
-	if( bind( mbox, (struct sockaddr *) &unix_addr, sizeof(unix_addr) ) ) 
-          Alarmp(SPLOG_FATAL, SESSION, "Sess_init: AF_UNIX unable to bind to name '%s': %d '%s'\n" , name, errno, strerror(errno) );
+   if (unlink(name) < 0 && errno != ENOENT)
+   {
+      Alarmp(SPLOG_FATAL, SESSION,
+	     "Sess_init: unable to remove old UNIX socket '%s': %d '%s'\n",
+	     name, errno, strerror(errno));
+   }
+
+   if( bind( mbox, (struct sockaddr *) &unix_addr, sizeof(unix_addr) ) ) 
+      Alarmp(SPLOG_FATAL, SESSION, "Sess_init: AF_UNIX unable to bind to name '%s': %d '%s'\n" , name, errno, strerror(errno) );
         
-	Alarm( SESSION, "Sess_init: UNIX bind for name %s ok\n", name );
+   Alarm( SESSION, "Sess_init: UNIX bind for name %s ok\n", name );
 
-	chmod( name, 0666 );
+   chmod( name, 0666 );
 
-	if( listen( mbox, 5 ) < 0 ) 
-	    Alarm( EXIT, "Sess_init: UNIX unable to listen\n" );
+   if( listen( mbox, 5 ) < 0 ) 
+      Alarm( EXIT, "Sess_init: UNIX unable to listen\n" );
 
-	Accept_unix_mbox = mbox;
-        Alarm( SESSION, "Sess_init: UNIX went ok on mailbox %d\n", mbox );
+   Accept_unix_mbox = mbox;
+   Alarm( SESSION, "Sess_init: UNIX went ok on mailbox %d\n", mbox );
 
 
 
-	Sess_attach_accept();
+   Sess_attach_accept();
 
-        Message_populate_with_buffers(&New_mess);
+   Message_populate_with_buffers(&New_mess);
 
-	G_init();
+   G_init();
 
-        Alarm( SESSION, "Sess_init: ended ok\n" );
+   Alarm( SESSION, "Sess_init: ended ok\n" );
 }
 
-void    Sess_fini(void)
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
+void Sess_fini(void)
 {
 
-        char name[256];
+   char name[256];
 
-        close( Accept_unix_mbox );
-        snprintf( name, sizeof(name), "%s/%u", SP_UNIX_SOCKET, (unsigned) Sess_port );
-        unlink( name );
+   close( Accept_unix_mbox );
+   snprintf( name, sizeof(name), "%s/%u", SP_UNIX_SOCKET, (unsigned) Sess_port );
 
+   if (unlink(name) < 0 && errno != ENOENT)
+   {
+      Alarmp(SPLOG_ERROR, SESSION,
+	     "Sess_fini: unable to remove old UNIX socket '%s': %d '%s'\n",
+	     name, errno, strerror(errno));
+   }
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void    Sess_signal_conf_reload(void)
 {
         My = Conf_my();
         G_signal_conf_reload();
 }
 
+//----------------------------------------------------------------------
+//
+//----------------------------------------------------------------------
 void	Sess_set_active_threshold()
 {
 	/* This function is used only by the session (and groups) layer */
