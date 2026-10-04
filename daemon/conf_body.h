@@ -55,8 +55,8 @@ void            parser_init();
 #define ext
 #endif
 
-ext     configuration	*Config;
-ext     FILE		*yyin;
+ext        configuration	*Config;
+extern     FILE		*yyin;
 
 #define YYSTYPE YYSTYPE
 

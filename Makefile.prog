@@ -1,0 +1,118 @@
+# Build and install the ngspread daemon and user programs.
+#
+# This replaces the former Makefile.simple.
+#
+# Programs:
+#
+#   spread -> /usr/local/sbin/spread
+#   spuser -> /usr/local/bin/spuser
+
+GLIB_CFLAGS := $(shell pkg-config --cflags glib-2.0)
+GLIB_LIBS   := $(shell pkg-config --libs glib-2.0)
+
+NG_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
+NG_GIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
+PROG_LIBS = \
+	$(GLIB_LIBS) \
+	-pthread \
+	-lcrypt
+
+PREFIX ?= /usr/local
+
+SBINDIR = $(PREFIX)/sbin
+BINDIR  = $(PREFIX)/bin
+
+CC ?= cc
+INSTALL ?= install
+
+CFLAGS ?= -O2
+CPPFLAGS ?=
+LDFLAGS ?=
+
+
+CFLAGS += -pthread
+
+CPPFLAGS += \
+	-Iinclude \
+	-Idaemon \
+	-Ilibspread \
+	-Ilibspread-util/include \
+	-Istdutil/src \
+	$(GLIB_CFLAGS)
+
+CPPFLAGS += \
+	-DNG_VERSION=\"$(NG_VERSION)\" \
+	-DNG_GIT_HASH=\"$(NG_GIT_HASH)\"
+	
+# Keep daemon sources explicit enough to avoid accidentally pulling unrelated
+# programs into the daemon.  version.o is required by the current build.
+
+#DAEMON_SRC = \
+#	$(wildcard daemon/*.c)
+	
+DAEMON_SRC = $(filter-out \
+	daemon/monitor.c \
+	daemon/r.c \
+	daemon/s.c, \
+	$(wildcard daemon/*.c))
+
+DAEMON_OBJ = $(DAEMON_SRC:.c=.o)
+
+# Common support objects used by the daemon build.
+LIBSPREAD_SRC = \
+	libspread/sp.c \
+	libspread/fl.c \
+	libspread/scatp.c
+
+LIBSPREAD_OBJ = $(LIBSPREAD_SRC:.c=.o)
+
+LIBSPREAD_UTIL_SRC = $(wildcard libspread-util/src/*.c)
+LIBSPREAD_UTIL_OBJ = $(LIBSPREAD_UTIL_SRC:.c=.o)
+
+STDUTIL_SRC = $(wildcard stdutil/src/*.c)
+STDUTIL_OBJ = $(STDUTIL_SRC:.c=.o)
+
+COMMON_OBJ = \
+	$(LIBSPREAD_OBJ) \
+	$(LIBSPREAD_UTIL_OBJ) \
+	$(STDUTIL_OBJ)
+
+# spuser source location varies between old Spread trees.  Prefer the normal
+# user/spuser.c path, otherwise fall back to spuser.c in the top directory.
+
+SPUSER_SRC = examples/user.c
+SPUSER_OBJ = examples/user.o
+
+SPUSER_OBJ = $(SPUSER_SRC:.c=.o)
+
+
+.PHONY: all clean install uninstall
+
+all: spread spuser
+
+spread: $(DAEMON_OBJ) $(COMMON_OBJ)
+	$(CC) -o $@ $(DAEMON_OBJ) $(COMMON_OBJ) \
+	    $(LDFLAGS) $(PROG_LIBS) -pthread -ldl
+
+spuser: $(SPUSER_OBJ) $(COMMON_OBJ)
+	$(CC) -o $@ $(SPUSER_OBJ) $(COMMON_OBJ) \
+	    $(LDFLAGS) $(PROG_LIBS) -pthread -ldl
+
+.c.o:
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+install: all
+	$(INSTALL) -d $(DESTDIR)$(SBINDIR)
+	$(INSTALL) -m 0755 spread $(DESTDIR)$(SBINDIR)/spread
+	$(INSTALL) -d $(DESTDIR)$(BINDIR)
+	$(INSTALL) -m 0755 spuser $(DESTDIR)$(BINDIR)/spuser
+
+uninstall:
+	rm -f $(DESTDIR)$(SBINDIR)/spread
+	rm -f $(DESTDIR)$(BINDIR)/spuser
+
+clean:
+	rm -f spread spuser
+	rm -f $(DAEMON_OBJ) $(SPUSER_OBJ)
+	rm -f $(COMMON_OBJ)

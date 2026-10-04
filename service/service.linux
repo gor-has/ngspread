@@ -1,15 +1,20 @@
 [Unit]
-Description=NGspread messaging daemon
+Description=ngspread daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
+User=spread
+Group=spread
+
 RuntimeDirectory=spread
 RuntimeDirectoryMode=0755
+
 ExecStart=/usr/local/sbin/spread -c /etc/ngspread/spread.conf
+
 Restart=on-failure
-RestartSec=5
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target

@@ -103,7 +103,7 @@ static	void	Print_flow_control( int16 fc_buf[MAX_PROCS_RING][2] );
 static  void	Activate_status();
 static	void	Send_status_query();
 
-static	void	Report_message();
+static	void	Report_message( mailbox fd, int dummy, void *dummy_p );
 
 static  void    Reload_Conf();
 

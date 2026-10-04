@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# PROVIDE: ngspread
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ngspread"
+rcvar="ngspread_enable"
+
+pidfile="/var/run/spread/ngspread.pid"
+
+command="/usr/sbin/daemon"
+command_args="-P ${pidfile} -u spread -o /var/log/ngspread.log /usr/local/sbin/spread -c /usr/local/etc/ngspread/spread.conf"
+
+start_precmd="ngspread_prestart"
+
+ngspread_prestart()
+{
+    install -d -m 0755 -o spread -g spread /var/run/spread
+    touch /var/log/ngspread.log
+    chown spread:spread /var/log/ngspread.log
+    rm -f "${pidfile}"
+}
+
+load_rc_config "$name"
+
+: ${ngspread_enable:="NO"}
+
+run_rc_command "$1"
+

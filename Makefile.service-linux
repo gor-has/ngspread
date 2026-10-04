@@ -1,0 +1,76 @@
+# Install the Linux systemd service for ngspread.
+#
+# Source service file:
+#
+#   service/service.linux
+#
+# Installed service file:
+#
+#   /etc/systemd/system/ngspread.service
+#
+# The daemon and spuser themselves are installed by Makefile.prog.
+
+PREFIX ?= /usr/local
+
+INSTALL ?= install
+
+SERVICE_USER ?= spread
+SERVICE_GROUP ?= spread
+
+CONFIG_DIR ?= /etc/ngspread
+CONFIG_FILE ?= $(CONFIG_DIR)/spread.conf
+CONFIG_SRC ?= spread.conf.example
+
+RUN_DIR ?= /var/run/spread
+
+SERVICE_SRC ?= service/service.linux
+SERVICE_DST ?= /etc/systemd/system/ngspread.service
+
+.PHONY: install install-user install-dirs install-config install-service \
+        enable restart uninstall
+
+install: install-user install-dirs install-config install-service enable
+
+install-user:
+	@if ! getent group $(SERVICE_GROUP) >/dev/null 2>&1; then \
+		echo "Creating group $(SERVICE_GROUP)"; \
+		groupadd --system $(SERVICE_GROUP); \
+	fi
+	@if ! id $(SERVICE_USER) >/dev/null 2>&1; then \
+		echo "Creating user $(SERVICE_USER)"; \
+		useradd --system \
+		    --gid $(SERVICE_GROUP) \
+		    --home-dir /nonexistent \
+		    --shell /usr/sbin/nologin \
+		    --no-create-home \
+		    $(SERVICE_USER); \
+	fi
+
+install-dirs:
+	$(INSTALL) -d -m 0755 $(CONFIG_DIR)
+	$(INSTALL) -d -m 0755 $(RUN_DIR)
+	chown $(SERVICE_USER):$(SERVICE_GROUP) $(RUN_DIR)
+
+install-config:
+	@if [ ! -f "$(CONFIG_FILE)" ]; then \
+		echo "Installing $(CONFIG_FILE)"; \
+		$(INSTALL) -m 0644 $(CONFIG_SRC) $(CONFIG_FILE); \
+	else \
+		echo "Keeping existing $(CONFIG_FILE)"; \
+	fi
+
+install-service:
+	$(INSTALL) -d -m 0755 /etc/systemd/system
+	$(INSTALL) -m 0644 $(SERVICE_SRC) $(SERVICE_DST)
+	systemctl daemon-reload
+
+enable:
+	systemctl enable ngspread.service
+
+restart:
+	systemctl restart ngspread.service
+
+uninstall:
+	-systemctl disable --now ngspread.service
+	rm -f $(SERVICE_DST)
+	systemctl daemon-reload

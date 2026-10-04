@@ -1,0 +1,104 @@
+# Build and install the ngspread client libraries.
+#
+# Installation layout:
+#
+#   /usr/local/include/ngspread/sp.h
+#   /usr/local/lib/libspread.so
+#   /usr/local/lib/libspread.a
+#   /usr/local/lib/pkgconfig/ngspread.pc
+
+PREFIX ?= /usr/local
+
+CC ?= cc
+AR ?= ar
+RANLIB ?= ranlib
+INSTALL ?= install
+
+CFLAGS ?= -O2
+CPPFLAGS ?=
+LDFLAGS ?=
+
+CFLAGS += -fPIC -pthread
+
+CPPFLAGS += \
+	-Iinclude \
+	-Ilibspread \
+	-Ilibspread-util/include \
+	-Istdutil/src \
+	-Idaemon
+
+LIBDIR ?= $(PREFIX)/lib
+INCLUDEDIR ?= $(PREFIX)/include/ngspread
+PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
+
+LIBSPREAD_NAME = libspread
+LIBSPREAD_SO = $(LIBSPREAD_NAME).so
+LIBSPREAD_A = $(LIBSPREAD_NAME).a
+
+# Keep the source list explicit where the public Spread library is concerned.
+LIBSPREAD_SRC = \
+	libspread/sp.c \
+	libspread/fl.c \
+	libspread/scatp.c
+
+LIBSPREAD_OBJ = $(LIBSPREAD_SRC:.c=.o)
+
+# stdutil is part of the library dependency chain.  Using wildcard here mirrors
+# the current modernization build and avoids maintaining a second source list.
+STDUTIL_SRC = $(wildcard stdutil/src/*.c)
+STDUTIL_OBJ = $(STDUTIL_SRC:.c=.o)
+
+LIBSPREAD_UTIL_SRC = $(wildcard libspread-util/src/*.c)
+LIBSPREAD_UTIL_OBJ = $(LIBSPREAD_UTIL_SRC:.c=.o)
+
+ALL_LIBRARY_OBJ = \
+	$(LIBSPREAD_OBJ) \
+	$(LIBSPREAD_UTIL_OBJ) \
+	$(STDUTIL_OBJ)
+
+.PHONY: all clean install uninstall pkgconfig
+
+all: $(LIBSPREAD_SO) $(LIBSPREAD_A)
+
+$(LIBSPREAD_SO): $(ALL_LIBRARY_OBJ)
+	$(CC) -shared -o $@ $(ALL_LIBRARY_OBJ) $(LDFLAGS) -pthread -ldl
+
+$(LIBSPREAD_A): $(ALL_LIBRARY_OBJ)
+	$(AR) rcs $@ $(ALL_LIBRARY_OBJ)
+	$(RANLIB) $@
+
+.c.o:
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+ngspread.pc: ngspread.pc.in
+	sed \
+	    -e 's|@PREFIX@|$(PREFIX)|g' \
+	    -e 's|@LIBDIR@|$(LIBDIR)|g' \
+	    -e 's|@INCLUDEDIR@|$(PREFIX)/include|g' \
+	    $< > $@
+
+pkgconfig: ngspread.pc
+
+install: all pkgconfig
+	$(INSTALL) -d $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL) -m 0644 include/ngspread/sp.h \
+	    $(DESTDIR)$(INCLUDEDIR)/sp.h
+	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
+	$(INSTALL) -m 0755 $(LIBSPREAD_SO) \
+	    $(DESTDIR)$(LIBDIR)/$(LIBSPREAD_SO)
+	$(INSTALL) -m 0644 $(LIBSPREAD_A) \
+	    $(DESTDIR)$(LIBDIR)/$(LIBSPREAD_A)
+	$(INSTALL) -d $(DESTDIR)$(PKGCONFIGDIR)
+	$(INSTALL) -m 0644 ngspread.pc \
+	    $(DESTDIR)$(PKGCONFIGDIR)/ngspread.pc
+
+uninstall:
+	rm -f $(DESTDIR)$(INCLUDEDIR)/sp.h
+	rm -f $(DESTDIR)$(LIBDIR)/$(LIBSPREAD_SO)
+	rm -f $(DESTDIR)$(LIBDIR)/$(LIBSPREAD_A)
+	rm -f $(DESTDIR)$(PKGCONFIGDIR)/ngspread.pc
+
+clean:
+	rm -f $(ALL_LIBRARY_OBJ)
+	rm -f $(LIBSPREAD_SO) $(LIBSPREAD_A)
+	rm -f ngspread.pc
