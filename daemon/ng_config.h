@@ -59,7 +59,7 @@
 #define PACKAGE_VERSION "0.1.0"
 
 #define SPREAD_ETCDIR "/usr/local/etc"
-#define SP_UNIX_SOCKET "/tmp"
+#define SP_UNIX_SOCKET "/run/spread"
 #define _PATH_SPREAD_PIDDIR "/var/run"
 
 #define HAVE_INTXX_T 1
